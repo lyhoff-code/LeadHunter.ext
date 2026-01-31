@@ -1117,3 +1117,184 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gray-400);
 }
+
+/* ==================== DARK MODE ==================== */
+body.dark-mode {
+  --primary: #e2e8f0;
+  --primary-light: #cbd5e1;
+  --primary-medium: #94a3b8;
+
+  --white: #0f172a;
+  --gray-50: #1e293b;
+  --gray-100: #1e293b;
+  --gray-200: #334155;
+  --gray-300: #475569;
+  --gray-400: #64748b;
+  --gray-500: #94a3b8;
+  --gray-600: #cbd5e1;
+
+  --critical-light: #450a0a;
+  --high-light: #431407;
+  --medium-light: #422006;
+  --low-light: #1f2937;
+  --hot-light: #2e1065;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+body.dark-mode .header {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-bottom-color: #334155;
+}
+
+body.dark-mode .tabs {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode .tab {
+  color: #94a3b8;
+}
+
+body.dark-mode .tab.active {
+  background: #0f172a;
+  color: #10b981;
+  border-color: #334155;
+}
+
+body.dark-mode .stat-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode .urgency-bar {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode .lead-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode .lead-card:hover {
+  border-color: #10b981;
+  background: #253044;
+}
+
+body.dark-mode .settings-group {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="password"],
+body.dark-mode input[type="url"],
+body.dark-mode input[type="number"],
+body.dark-mode textarea,
+body.dark-mode select {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: #64748b;
+}
+
+body.dark-mode .industry-category {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+body.dark-mode .industry-category .checkbox-group label {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+body.dark-mode .industry-category .checkbox-group label:hover {
+  background: #334155;
+  border-color: #10b981;
+}
+
+body.dark-mode .modal-content {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+body.dark-mode .modal-header {
+  border-bottom-color: #334155;
+}
+
+body.dark-mode .section-card {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+body.dark-mode .help-link {
+  color: #10b981;
+}
+
+body.dark-mode .btn-secondary {
+  background: #334155;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+
+body.dark-mode .btn-secondary:hover {
+  background: #475569;
+}
+
+body.dark-mode .btn-outline {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+body.dark-mode .btn-outline:hover {
+  background: #334155;
+}
+
+body.dark-mode .code-block {
+  background: #0f172a;
+  border: 1px solid #334155;
+}
+
+body.dark-mode ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+body.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Dark mode transition */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.header,
+.tabs,
+.tab,
+.stat-card,
+.lead-card,
+.settings-group,
+.modal-content,
+.section-card,
+input,
+textarea,
+select {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}

@@ -116,6 +116,8 @@ export const translations = {
     settingsCompetitors: 'Competitors to Detect',
     competitorsDesc: 'If they mention these, they are actively looking for a solution',
     settingsLanguage: 'Language',
+    settingsAppearance: 'Appearance',
+    darkMode: 'Dark mode (night mode)',
     saveSettings: 'Save Settings',
     saved: 'Saved!',
 
@@ -310,6 +312,8 @@ export const translations = {
     settingsCompetitors: 'Competidores a Detectar',
     competitorsDesc: 'Si mencionan estos, están buscando solución activamente',
     settingsLanguage: 'Idioma',
+    settingsAppearance: 'Apariencia',
+    darkMode: 'Modo oscuro (modo noche)',
     saveSettings: 'Guardar Configuración',
     saved: '¡Guardado!',
 

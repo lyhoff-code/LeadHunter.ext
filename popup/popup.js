@@ -67,6 +67,17 @@ class PopupController {
   }
 
   /**
+   * Apply dark mode to body
+   */
+  applyDarkMode(enabled) {
+    if (enabled) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+  }
+
+  /**
    * Change language and save preference
    */
   async changeLanguage(lang) {
@@ -102,7 +113,8 @@ class PopupController {
       autoSendHubspot: false,
       autoSendWebhook: false,
       autoSendSheets: false,
-      autoFindEmail: false
+      autoFindEmail: false,
+      darkMode: false
     };
   }
 
@@ -798,6 +810,10 @@ class PopupController {
     document.getElementById('autoSendWebhook').checked = this.settings.autoSendWebhook || false;
     document.getElementById('autoSendSheets').checked = this.settings.autoSendSheets || false;
     document.getElementById('autoFindEmail').checked = this.settings.autoFindEmail || false;
+    document.getElementById('darkMode').checked = this.settings.darkMode || false;
+
+    // Apply dark mode
+    this.applyDarkMode(this.settings.darkMode);
 
     // Industries
     const industries = this.settings.industries || [];
@@ -861,10 +877,14 @@ class PopupController {
       autoSendHubspot: document.getElementById('autoSendHubspot').checked,
       autoSendWebhook: document.getElementById('autoSendWebhook').checked,
       autoSendSheets: document.getElementById('autoSendSheets').checked,
-      autoFindEmail: document.getElementById('autoFindEmail').checked
+      autoFindEmail: document.getElementById('autoFindEmail').checked,
+      darkMode: document.getElementById('darkMode').checked
     };
 
     await chrome.storage.local.set({ settings: this.settings });
+
+    // Apply dark mode immediately
+    this.applyDarkMode(this.settings.darkMode);
 
     // Notify background script
     chrome.runtime.sendMessage({ type: 'SETTINGS_UPDATED', settings: this.settings });
