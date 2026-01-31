@@ -385,6 +385,11 @@ body {
   background: linear-gradient(90deg, #eef2ff 0%, var(--white) 100%);
 }
 
+.lead-card.scraped {
+  border-left-color: #10b981;
+  background: linear-gradient(90deg, #ecfdf5 0%, var(--white) 100%);
+}
+
 /* Lead Type Badges */
 .lead-card-badges {
   display: flex;
@@ -411,6 +416,12 @@ body {
   background: #eef2ff;
   color: #4f46e5;
   border: 1px solid #c7d2fe;
+}
+
+.lead-type-badge.scraped {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
 }
 
 .lead-industry-badge {

@@ -128,6 +128,21 @@
         "https://*.instagram.com/*"
       ],
       "js": ["content/manual-save.js"]
+    },
+    {
+      "matches": [
+        "https://*.linkedin.com/company/*",
+        "https://*.linkedin.com/school/*",
+        "https://*.facebook.com/*",
+        "https://*.yelp.com/biz/*",
+        "https://www.google.com/maps/*",
+        "https://*.instagram.com/*",
+        "https://*.thumbtack.com/*",
+        "https://*.houzz.com/*",
+        "https://*.alignable.com/*"
+      ],
+      "js": ["content/business-scraper.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {

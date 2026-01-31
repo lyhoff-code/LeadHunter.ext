@@ -121,6 +121,9 @@ async function handleMessage(message, sender) {
     case 'SAVE_MANUAL_CONTACT':
       return await saveManualContact(message.data);
 
+    case 'BUSINESS_SCRAPED':
+      return await handleScrapedBusiness(message.data);
+
     default:
       return { error: 'Unknown message type' };
   }
@@ -592,6 +595,99 @@ async function saveManualContact(data) {
     return { success: true, lead };
   } catch (error) {
     console.error('Manual save error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Handle scraped business from business pages
+async function handleScrapedBusiness(data) {
+  try {
+    // Check for duplicates based on URL or business name + phone
+    const storage = await chrome.storage.local.get(['leads']);
+    const leads = storage.leads || [];
+
+    const isDuplicate = leads.some(l =>
+      l.profileUrl === data.url ||
+      (l.name === data.name && l.phone === data.phone && data.phone) ||
+      (l.name === data.name && l.email === data.email && data.email)
+    );
+
+    if (isDuplicate) {
+      console.log('Business already saved:', data.name);
+      return { success: false, error: 'Business already saved' };
+    }
+
+    // Create scraped business lead
+    const lead = {
+      id: generateId(),
+      name: data.name || 'Unknown Business',
+      title: data.category || '',
+      bio: data.description || '',
+      profileUrl: data.url,
+      platform: data.platform,
+      comment: '', // No comment for scraped businesses
+      score: 2, // Low score - no pain signal
+      urgencyLevel: 'low',
+      frustrationLevel: 0,
+      buyingIntent: 'unknown',
+      suggestedApproach: 'cold',
+      analysis: `Negocio scrapeado de ${data.platform}. Sin señales de dolor - contactar con enfoque frío.`,
+      painPoints: [],
+      industry: data.industry || data.category || 'unknown',
+      isBusinessOwner: true,
+      mentionsCompetitor: false,
+      messageDraft: '',
+      timestamp: data.scrapedAt || new Date().toISOString(),
+      detectedAt: new Date().toISOString(),
+      contacted: false,
+      sentToHubspot: false,
+      sentToWebhook: false,
+      sentToSheets: false,
+      email: data.email || null,
+      emailConfidence: data.email ? 100 : null,
+      company: data.name || null,
+      website: data.website || null,
+      phone: data.phone || null,
+      address: data.address || null,
+      rating: data.rating || null,
+      reviewCount: data.reviewCount || null,
+      employees: data.employees || null,
+      previouslyContacted: false,
+      previousInteractions: [],
+      screenshot: null,
+      notes: '',
+      leadType: 'scraped', // Mark as scraped from business page
+      filterReason: 'business_page_scrape',
+      filterPriority: 'low',
+      detectedIndustry: data.industry || null
+    };
+
+    // Update stats
+    stats.leadsFound++;
+    stats.scanned++;
+
+    // Save to storage
+    leads.unshift(lead);
+
+    // Keep only last 500 leads
+    if (leads.length > 500) {
+      leads.splice(500);
+    }
+
+    await chrome.storage.local.set({ leads, stats });
+
+    // Auto-send to integrations
+    await autoSendIntegrations(lead);
+
+    // Broadcast to popup
+    chrome.runtime.sendMessage({ type: 'NEW_LEAD', lead }).catch(() => {
+      // Popup not open - ignore
+    });
+
+    console.log('Business scraped and saved:', data.name);
+    return { success: true, lead };
+  } catch (error) {
+    console.error('Scraped business save error:', error);
     return { success: false, error: error.message };
   }
 }

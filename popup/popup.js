@@ -294,12 +294,15 @@ class PopupController {
   renderLeadCard(lead) {
     const isManual = lead.leadType === 'manual';
     const isProspect = lead.leadType === 'prospect';
-    const isPain = lead.leadType === 'pain' || (!isManual && !isProspect);
+    const isScraped = lead.leadType === 'scraped';
+    const isPain = lead.leadType === 'pain' || (!isManual && !isProspect && !isScraped);
 
     // Determine score class
     let scoreClass = 'cold';
     if (isManual) {
       scoreClass = 'manual';
+    } else if (isScraped) {
+      scoreClass = 'scraped';
     } else if (isProspect) {
       scoreClass = 'prospect';
     } else if (lead.score >= 8) {
@@ -315,6 +318,9 @@ class PopupController {
     if (isManual) {
       urgencyEmoji = '📌';
       urgencyTooltip = t('tooltipScoreManual', this.currentLanguage);
+    } else if (isScraped) {
+      urgencyEmoji = '🏢';
+      urgencyTooltip = t('tooltipScraped', this.currentLanguage) || 'Scraped business - Contact info extracted from business page';
     } else if (isProspect) {
       urgencyEmoji = '👤';
       urgencyTooltip = t('tooltipProspect', this.currentLanguage) || 'Prospect - Business owner without explicit pain signals';
@@ -329,6 +335,9 @@ class PopupController {
     let preview;
     if (isManual) {
       preview = lead.title || lead.company || t('manuallySaved', this.currentLanguage);
+    } else if (isScraped) {
+      const contactInfo = [lead.phone, lead.email, lead.website].filter(Boolean).join(' • ');
+      preview = contactInfo || lead.title || lead.category || t('scrapedLeads', this.currentLanguage);
     } else {
       preview = (lead.comment || '').substring(0, 80) + '...';
     }
@@ -337,6 +346,8 @@ class PopupController {
     let scoreDisplay;
     if (isManual) {
       scoreDisplay = '📌';
+    } else if (isScraped) {
+      scoreDisplay = '🏢';
     } else if (isProspect) {
       scoreDisplay = '👤';
     } else {
@@ -344,15 +355,18 @@ class PopupController {
     }
 
     // Lead type badge
-    const typeBadge = isProspect
-      ? '<span class="lead-type-badge prospect">PROSPECT</span>'
-      : isPain && lead.score >= 7
-        ? '<span class="lead-type-badge pain">PAIN</span>'
-        : '';
+    let typeBadge = '';
+    if (isScraped) {
+      typeBadge = '<span class="lead-type-badge scraped">SCRAPED</span>';
+    } else if (isProspect) {
+      typeBadge = '<span class="lead-type-badge prospect">PROSPECT</span>';
+    } else if (isPain && lead.score >= 7) {
+      typeBadge = '<span class="lead-type-badge pain">PAIN</span>';
+    }
 
     // Industry badge if detected
-    const industryBadge = lead.detectedIndustry
-      ? `<span class="lead-industry-badge">${lead.detectedIndustry}</span>`
+    const industryBadge = (lead.detectedIndustry || lead.industry)
+      ? `<span class="lead-industry-badge">${lead.detectedIndustry || lead.industry}</span>`
       : '';
 
     return `
@@ -440,9 +454,11 @@ class PopupController {
     if (type === 'manual') {
       filtered = filtered.filter(l => l.leadType === 'manual');
     } else if (type === 'pain') {
-      filtered = filtered.filter(l => l.leadType === 'pain' || (!l.leadType && l.leadType !== 'prospect' && l.leadType !== 'manual'));
+      filtered = filtered.filter(l => l.leadType === 'pain' || (!l.leadType && l.leadType !== 'prospect' && l.leadType !== 'manual' && l.leadType !== 'scraped'));
     } else if (type === 'prospect') {
       filtered = filtered.filter(l => l.leadType === 'prospect');
+    } else if (type === 'scraped') {
+      filtered = filtered.filter(l => l.leadType === 'scraped');
     }
 
     const list = document.getElementById('allLeadsList');

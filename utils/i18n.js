@@ -38,6 +38,7 @@ export const translations = {
     allTypes: 'All types',
     painLeads: '🔥 Pain Leads',
     prospectLeads: '👤 Prospects',
+    scrapedLeads: '🏢 Scraped',
     autoDetected: 'Auto-detected',
     manuallySaved: 'Manually saved',
     noLeads: 'No leads detected.',
@@ -192,6 +193,7 @@ export const translations = {
     tooltipScoreCold: 'COLD LEAD (1-4): Low intent, long-term prospect',
     tooltipScoreManual: 'MANUAL: Saved manually, no AI score',
     tooltipScoreProspect: 'PROSPECT: Business owner in target industry, no explicit pain signal yet',
+    tooltipScraped: 'SCRAPED: Contact info extracted from business page automatically',
 
     // Tooltips - Dashboard
     tooltipLeadsToday: 'Leads captured in the last 24 hours',
@@ -237,6 +239,7 @@ export const translations = {
     allTypes: 'Todos los tipos',
     painLeads: '🔥 Leads con Dolor',
     prospectLeads: '👤 Prospectos',
+    scrapedLeads: '🏢 Scrapeados',
     autoDetected: 'Auto-detectado',
     manuallySaved: 'Guardado manual',
     noLeads: 'No hay leads detectados.',
@@ -391,6 +394,7 @@ export const translations = {
     tooltipScoreCold: 'LEAD FRÍO (1-4): Baja intención, prospecto a largo plazo',
     tooltipScoreManual: 'MANUAL: Guardado manualmente, sin score de IA',
     tooltipScoreProspect: 'PROSPECTO: Dueño de negocio en industria objetivo, sin señal de dolor explícita',
+    tooltipScraped: 'SCRAPEADO: Info de contacto extraída automáticamente de página de negocio',
 
     // Tooltips - Dashboard
     tooltipLeadsToday: 'Leads capturados en las últimas 24 horas',
