@@ -99,6 +99,7 @@ class PopupController {
       notifyHotLeads: true,
       soundEnabled: false,
       scanning: true,
+      autoSendHubspot: false,
       autoSendWebhook: false,
       autoSendSheets: false,
       autoFindEmail: false
@@ -793,6 +794,7 @@ class PopupController {
     document.getElementById('competitors').value = this.settings.competitors || '';
     document.getElementById('notifyHotLeads').checked = this.settings.notifyHotLeads !== false;
     document.getElementById('soundEnabled').checked = this.settings.soundEnabled || false;
+    document.getElementById('autoSendHubspot').checked = this.settings.autoSendHubspot || false;
     document.getElementById('autoSendWebhook').checked = this.settings.autoSendWebhook || false;
     document.getElementById('autoSendSheets').checked = this.settings.autoSendSheets || false;
     document.getElementById('autoFindEmail').checked = this.settings.autoFindEmail || false;
@@ -856,6 +858,7 @@ class PopupController {
       industries,
       notifyHotLeads: document.getElementById('notifyHotLeads').checked,
       soundEnabled: document.getElementById('soundEnabled').checked,
+      autoSendHubspot: document.getElementById('autoSendHubspot').checked,
       autoSendWebhook: document.getElementById('autoSendWebhook').checked,
       autoSendSheets: document.getElementById('autoSendSheets').checked,
       autoFindEmail: document.getElementById('autoFindEmail').checked

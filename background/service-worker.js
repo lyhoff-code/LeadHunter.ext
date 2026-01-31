@@ -48,6 +48,7 @@ function getDefaultSettings() {
     notifyHotLeads: true,
     soundEnabled: false,
     scanning: true,
+    autoSendHubspot: false,
     autoSendWebhook: false,
     autoSendSheets: false,
     autoFindEmail: false
@@ -246,6 +247,19 @@ async function analyzeComment(data) {
 async function autoSendIntegrations(lead) {
   const promises = [];
 
+  if (settings.autoSendHubspot && settings.hubspotKey) {
+    promises.push(
+      sendToHubSpot(lead, settings.hubspotKey)
+        .then(result => {
+          lead.sentToHubspot = true;
+          lead.hubspotId = result.id;
+          updateLeadInStorage(lead);
+          console.log('HubSpot auto-send success:', result.id);
+        })
+        .catch(e => console.error('HubSpot auto-send error:', e))
+    );
+  }
+
   if (settings.autoSendWebhook && settings.webhookUrl) {
     promises.push(
       sendToWebhook(lead, settings.webhookUrl).catch(e => console.error('Webhook auto-send error:', e))
@@ -265,6 +279,17 @@ async function autoSendIntegrations(lead) {
   }
 
   await Promise.all(promises);
+}
+
+// Update lead in storage
+async function updateLeadInStorage(lead) {
+  const storage = await chrome.storage.local.get(['leads']);
+  const leads = storage.leads || [];
+  const index = leads.findIndex(l => l.id === lead.id);
+  if (index !== -1) {
+    leads[index] = lead;
+    await chrome.storage.local.set({ leads });
+  }
 }
 
 // Enrich lead with email
