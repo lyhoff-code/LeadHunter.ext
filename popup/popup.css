@@ -658,29 +658,75 @@ body {
   accent-color: var(--accent);
 }
 
-/* Industry Categories */
+/* Industry Categories - Collapsible */
 .industry-category {
-  margin-bottom: 16px;
-  padding: 12px;
+  margin-bottom: 8px;
   background: var(--gray-50);
   border-radius: 10px;
   border: 1px solid var(--gray-200);
+  overflow: hidden;
 }
 
 .industry-category:last-child {
   margin-bottom: 0;
 }
 
+.category-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.category-header:hover {
+  background: var(--gray-100);
+}
+
 .category-title {
   font-size: 13px;
   font-weight: 600;
   color: var(--primary);
-  margin: 0 0 10px 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--gray-200);
+  margin: 0;
+  flex: 1;
+}
+
+.category-toggle {
+  font-size: 10px;
+  color: var(--gray-400);
+  margin-right: 8px;
+  transition: transform 0.2s;
+}
+
+.category-count {
+  font-size: 11px;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.category-count.has-selected {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.category-content {
+  padding: 0 12px 12px 12px;
+  max-height: 500px;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.2s ease;
+  opacity: 1;
+}
+
+.industry-category.collapsed .category-content {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
 }
 
 .industry-category .checkbox-group {
+  display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 4px;
 }
@@ -691,11 +737,22 @@ body {
   background: var(--white);
   border: 1px solid var(--gray-200);
   border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
 .industry-category .checkbox-group label:hover {
   background: var(--accent-light);
   border-color: var(--accent);
+}
+
+.industry-category .checkbox-group input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
 }
 
 .industry-category .checkbox-group input[type="checkbox"]:checked + span {
@@ -1213,6 +1270,18 @@ body.dark-mode textarea::placeholder {
 body.dark-mode .industry-category {
   background: #0f172a;
   border-color: #334155;
+}
+
+body.dark-mode .category-header:hover {
+  background: #1e293b;
+}
+
+body.dark-mode .category-toggle {
+  color: #64748b;
+}
+
+body.dark-mode .category-count {
+  color: #94a3b8;
 }
 
 body.dark-mode .industry-category .checkbox-group label {

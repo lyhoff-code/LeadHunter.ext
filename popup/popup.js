@@ -78,6 +78,42 @@ class PopupController {
   }
 
   /**
+   * Toggle collapsible industry category
+   */
+  toggleCategory(header) {
+    const category = header.closest('.industry-category');
+    const toggle = header.querySelector('.category-toggle');
+
+    if (category.classList.contains('collapsed')) {
+      category.classList.remove('collapsed');
+      toggle.textContent = '▼';
+    } else {
+      category.classList.add('collapsed');
+      toggle.textContent = '▶';
+    }
+  }
+
+  /**
+   * Update category selected counts
+   */
+  updateCategoryCounts() {
+    document.querySelectorAll('.industry-category').forEach(category => {
+      const checkboxes = category.querySelectorAll('input[name="industry"]');
+      const checked = category.querySelectorAll('input[name="industry"]:checked').length;
+      const countEl = category.querySelector('.category-count');
+
+      if (countEl) {
+        countEl.textContent = `(${checked}/${checkboxes.length})`;
+        if (checked > 0) {
+          countEl.classList.add('has-selected');
+        } else {
+          countEl.classList.remove('has-selected');
+        }
+      }
+    });
+  }
+
+  /**
    * Change language and save preference
    */
   async changeLanguage(lang) {
@@ -150,6 +186,16 @@ class PopupController {
     // Modal close buttons
     document.querySelectorAll('.modal-close').forEach(btn => {
       btn.addEventListener('click', () => this.closeAllModals());
+    });
+
+    // Collapsible industry categories
+    document.querySelectorAll('.category-header').forEach(header => {
+      header.addEventListener('click', () => this.toggleCategory(header));
+    });
+
+    // Update category counts when checkboxes change
+    document.querySelectorAll('input[name="industry"]').forEach(checkbox => {
+      checkbox.addEventListener('change', () => this.updateCategoryCounts());
     });
 
     document.getElementById('leadModal').addEventListener('click', (e) => {
@@ -820,6 +866,9 @@ class PopupController {
     document.querySelectorAll('input[name="industry"]').forEach(checkbox => {
       checkbox.checked = industries.includes(checkbox.value);
     });
+
+    // Update category counts
+    this.updateCategoryCounts();
 
     // Update scanning button state
     if (!this.settings.scanning) {

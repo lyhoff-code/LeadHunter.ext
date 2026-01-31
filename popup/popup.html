@@ -243,9 +243,13 @@
         <h3>🏢 <span data-i18n="settingsIndustries">Target Industries</span></h3>
 
         <!-- Home Services (Vertical) -->
-        <div class="industry-category">
-          <h4 class="category-title" data-i18n="categoryHomeServices">🔧 Home Services</h4>
-          <div class="checkbox-group">
+        <div class="industry-category collapsible">
+          <div class="category-header" data-category="homeServices">
+            <h4 class="category-title" data-i18n="categoryHomeServices">🔧 Home Services</h4>
+            <span class="category-toggle">▼</span>
+            <span class="category-count">(0)</span>
+          </div>
+          <div class="checkbox-group category-content">
             <label><input type="checkbox" name="industry" value="plumbing"> <span data-i18n="industryPlumbing">Plumbers</span></label>
             <label><input type="checkbox" name="industry" value="hvac"> <span data-i18n="industryHvac">HVAC</span></label>
             <label><input type="checkbox" name="industry" value="electrical"> <span data-i18n="industryElectrical">Electricians</span></label>
@@ -260,9 +264,13 @@
         </div>
 
         <!-- Healthcare -->
-        <div class="industry-category">
-          <h4 class="category-title" data-i18n="categoryHealthcare">🏥 Healthcare</h4>
-          <div class="checkbox-group">
+        <div class="industry-category collapsible collapsed">
+          <div class="category-header" data-category="healthcare">
+            <h4 class="category-title" data-i18n="categoryHealthcare">🏥 Healthcare</h4>
+            <span class="category-toggle">▶</span>
+            <span class="category-count">(0)</span>
+          </div>
+          <div class="checkbox-group category-content">
             <label><input type="checkbox" name="industry" value="dental"> <span data-i18n="industryDental">Dentists</span></label>
             <label><input type="checkbox" name="industry" value="medical"> <span data-i18n="industryMedical">Medical Clinics</span></label>
             <label><input type="checkbox" name="industry" value="chiropractic"> <span data-i18n="industryChiropractic">Chiropractors</span></label>
@@ -273,9 +281,13 @@
         </div>
 
         <!-- Professional Services -->
-        <div class="industry-category">
-          <h4 class="category-title" data-i18n="categoryProfessional">💼 Professional Services</h4>
-          <div class="checkbox-group">
+        <div class="industry-category collapsible collapsed">
+          <div class="category-header" data-category="professional">
+            <h4 class="category-title" data-i18n="categoryProfessional">💼 Professional Services</h4>
+            <span class="category-toggle">▶</span>
+            <span class="category-count">(0)</span>
+          </div>
+          <div class="checkbox-group category-content">
             <label><input type="checkbox" name="industry" value="legal"> <span data-i18n="industryLegal">Legal / Law Firms</span></label>
             <label><input type="checkbox" name="industry" value="accounting"> <span data-i18n="industryAccounting">Accounting</span></label>
             <label><input type="checkbox" name="industry" value="insurance"> <span data-i18n="industryInsurance">Insurance</span></label>
@@ -286,9 +298,13 @@
         </div>
 
         <!-- Automotive & Transport -->
-        <div class="industry-category">
-          <h4 class="category-title" data-i18n="categoryAutomotive">🚗 Automotive</h4>
-          <div class="checkbox-group">
+        <div class="industry-category collapsible collapsed">
+          <div class="category-header" data-category="automotive">
+            <h4 class="category-title" data-i18n="categoryAutomotive">🚗 Automotive</h4>
+            <span class="category-toggle">▶</span>
+            <span class="category-count">(0)</span>
+          </div>
+          <div class="checkbox-group category-content">
             <label><input type="checkbox" name="industry" value="automotive"> <span data-i18n="industryAutomotive">Auto Repair</span></label>
             <label><input type="checkbox" name="industry" value="towing"> <span data-i18n="industryTowing">Towing</span></label>
             <label><input type="checkbox" name="industry" value="autobody"> <span data-i18n="industryAutobody">Auto Body</span></label>
@@ -297,9 +313,13 @@
         </div>
 
         <!-- Other Services -->
-        <div class="industry-category">
-          <h4 class="category-title" data-i18n="categoryOther">📦 Other Services</h4>
-          <div class="checkbox-group">
+        <div class="industry-category collapsible collapsed">
+          <div class="category-header" data-category="other">
+            <h4 class="category-title" data-i18n="categoryOther">📦 Other Services</h4>
+            <span class="category-toggle">▶</span>
+            <span class="category-count">(0)</span>
+          </div>
+          <div class="checkbox-group category-content">
             <label><input type="checkbox" name="industry" value="photography"> <span data-i18n="industryPhotography">Photography</span></label>
             <label><input type="checkbox" name="industry" value="salon"> <span data-i18n="industrySalon">Salons & Spas</span></label>
             <label><input type="checkbox" name="industry" value="fitness"> <span data-i18n="industryFitness">Fitness / Gyms</span></label>
