@@ -256,12 +256,10 @@ async function saveLead(lead) {
 
   await chrome.storage.local.set({ leads });
 
-  // Broadcast to popup
-  try {
-    chrome.runtime.sendMessage({ type: 'NEW_LEAD', lead });
-  } catch (e) {
-    // Popup not open
-  }
+  // Broadcast to popup (only if open)
+  chrome.runtime.sendMessage({ type: 'NEW_LEAD', lead }).catch(() => {
+    // Popup not open - ignore
+  });
 }
 
 // Send to HubSpot
@@ -295,12 +293,10 @@ function generateId() {
 }
 
 // Periodic stats update to popup
-setInterval(async () => {
-  try {
-    chrome.runtime.sendMessage({ type: 'STATS_UPDATE', stats });
-  } catch (e) {
-    // Popup not open
-  }
+setInterval(() => {
+  chrome.runtime.sendMessage({ type: 'STATS_UPDATE', stats }).catch(() => {
+    // Popup not open - ignore
+  });
 }, 5000);
 
 // Listen for storage changes
