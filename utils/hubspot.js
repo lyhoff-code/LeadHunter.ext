@@ -32,13 +32,41 @@ export async function sendToHubSpot(lead, apiKey) {
     message: formatLeadMessage(lead)
   };
 
-  // If we have a profile URL that looks like LinkedIn, try to add it
-  if (lead.profileUrl) {
+  // Add email if available
+  if (lead.email) {
+    properties.email = lead.email;
+  }
+
+  // Add phone if available
+  if (lead.phone) {
+    properties.phone = lead.phone;
+  }
+
+  // Add company name if available
+  if (lead.company) {
+    properties.company = lead.company;
+  }
+
+  // Add website if available
+  if (lead.website) {
+    properties.website = lead.website;
+  } else if (lead.profileUrl) {
+    // If we have a profile URL that looks like LinkedIn, try to add it
     if (lead.profileUrl.includes('linkedin.com')) {
       properties.hs_linkedinid = lead.profileUrl;
     }
     // Store profile URL in website field as fallback
     properties.website = lead.profileUrl;
+  }
+
+  // Add address if available
+  if (lead.address) {
+    properties.address = lead.address;
+  }
+
+  // Add industry if available
+  if (lead.industry && lead.industry !== 'unknown') {
+    properties.industry = lead.industry;
   }
 
   try {
@@ -114,15 +142,40 @@ async function updateContact(contactId, lead, apiKey) {
  * Create a note associated with a contact
  */
 async function createNote(contactId, lead, apiKey) {
-  const noteBody = `
+  // Different note format for scraped businesses vs social media leads
+  let noteBody;
+
+  if (lead.leadType === 'scraped') {
+    noteBody = `
+🎯 Lead Hunter AI - Negocio Scrapeado
+
+🏢 Tipo: Negocio extraído automáticamente
+📱 Plataforma: ${lead.platform}
+📅 Fecha: ${new Date(lead.timestamp).toLocaleString()}
+🏷️ Industria: ${lead.industry || 'N/A'}
+
+📞 Información de Contacto:
+${lead.phone ? `• Teléfono: ${lead.phone}` : ''}
+${lead.email ? `• Email: ${lead.email}` : ''}
+${lead.website ? `• Website: ${lead.website}` : ''}
+${lead.address ? `• Dirección: ${lead.address}` : ''}
+
+🔗 Página original: ${lead.profileUrl || 'N/A'}
+
+💡 Nota: Este contacto fue extraído automáticamente de una página de negocio.
+No hay señales de dolor explícitas - usar enfoque frío para contactar.
+`.trim();
+  } else {
+    noteBody = `
 🎯 Lead Hunter AI - Lead Detectado
 
 📊 Score: ${lead.score}/10
 📱 Plataforma: ${lead.platform}
 📅 Fecha: ${new Date(lead.timestamp).toLocaleString()}
+🏷️ Tipo: ${lead.leadType === 'pain' ? '🔥 Lead con Dolor' : lead.leadType === 'prospect' ? '👤 Prospecto' : '📌 Manual'}
 
 💬 Comentario Original:
-"${lead.comment}"
+"${lead.comment || 'N/A'}"
 
 🔍 Análisis:
 ${lead.analysis || 'N/A'}
@@ -136,6 +189,7 @@ ${lead.mentionsCompetitor ? '\n⚠️ Menciona competidor - Buscando solución a
 📝 Mensaje Sugerido:
 ${lead.messageDraft || 'N/A'}
 `.trim();
+  }
 
   try {
     // Create engagement (note)
