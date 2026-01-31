@@ -11,12 +11,12 @@
     <!-- Header -->
     <header class="header">
       <div class="logo">
-        <span class="logo-icon">🏹</span>
+        <span class="logo-icon">◎</span>
         <h1>Lead Hunter<span class="logo-ai">AI</span></h1>
       </div>
       <div class="status-indicator" id="statusIndicator">
         <span class="status-dot"></span>
-        <span class="status-text" data-i18n="statusActive">Hunting</span>
+        <span class="status-text" data-i18n="statusActive">Active</span>
       </div>
     </header>
 
@@ -31,22 +31,22 @@
     <section id="dashboard" class="tab-content active">
       <div class="stats-grid">
         <div class="stat-card" data-tooltip="tooltipLeadsToday">
-          <span class="stat-icon">🎯</span>
+          <span class="stat-icon">⊕</span>
           <span class="stat-number" id="leadsToday">0</span>
           <span class="stat-label" data-i18n="leadsToday">Leads Today</span>
         </div>
         <div class="stat-card" data-tooltip="tooltipLeadsTotal">
-          <span class="stat-icon">📊</span>
+          <span class="stat-icon">▣</span>
           <span class="stat-number" id="leadsTotal">0</span>
           <span class="stat-label" data-i18n="leadsTotal">Total Leads</span>
         </div>
-        <div class="stat-card trophy" data-tooltip="tooltipHotLeads">
-          <span class="stat-icon">🔥</span>
+        <div class="stat-card hot" data-tooltip="tooltipHotLeads">
+          <span class="stat-icon">★</span>
           <span class="stat-number" id="hotLeads">0</span>
           <span class="stat-label" data-i18n="hotLeads">Hot Leads</span>
         </div>
         <div class="stat-card" data-tooltip="tooltipScanned">
-          <span class="stat-icon">🔍</span>
+          <span class="stat-icon">◉</span>
           <span class="stat-number" id="scannedComments">0</span>
           <span class="stat-label" data-i18n="scanned">Scanned</span>
         </div>
@@ -54,25 +54,25 @@
 
       <!-- Urgency Summary -->
       <div class="urgency-summary">
-        <h3><span class="section-icon">⏱️</span> <span data-i18n="byUrgency">By Urgency</span></h3>
+        <h3><span class="section-icon">◐</span> <span data-i18n="byUrgency">By Urgency</span></h3>
         <div class="urgency-bars">
           <div class="urgency-bar critical" data-tooltip="tooltipCritical">
-            <span class="urgency-emoji">🔥🔥</span>
+            <span class="urgency-indicator"></span>
             <span class="urgency-label" data-i18n="urgencyCritical">Critical</span>
             <span class="urgency-count" id="urgencyCritical">0</span>
           </div>
           <div class="urgency-bar high" data-tooltip="tooltipHigh">
-            <span class="urgency-emoji">🔥</span>
+            <span class="urgency-indicator"></span>
             <span class="urgency-label" data-i18n="urgencyHigh">High</span>
             <span class="urgency-count" id="urgencyHigh">0</span>
           </div>
           <div class="urgency-bar medium" data-tooltip="tooltipMedium">
-            <span class="urgency-emoji">⚡</span>
+            <span class="urgency-indicator"></span>
             <span class="urgency-label" data-i18n="urgencyMedium">Medium</span>
             <span class="urgency-count" id="urgencyMedium">0</span>
           </div>
           <div class="urgency-bar low" data-tooltip="tooltipLow">
-            <span class="urgency-emoji">💤</span>
+            <span class="urgency-indicator"></span>
             <span class="urgency-label" data-i18n="urgencyLow">Low</span>
             <span class="urgency-count" id="urgencyLow">0</span>
           </div>
@@ -80,18 +80,18 @@
       </div>
 
       <div class="recent-leads">
-        <h3><span class="section-icon">📋</span> <span data-i18n="recentLeads">Recent Leads</span></h3>
+        <h3><span class="section-icon">▤</span> <span data-i18n="recentLeads">Recent Leads</span></h3>
         <div id="recentLeadsList" class="leads-list">
           <p class="empty-state" data-i18n="noLeadsYet">No leads detected yet. Browse the platforms to start.</p>
         </div>
       </div>
 
       <div class="quick-actions">
-        <button id="toggleScanning" class="btn btn-primary btn-glow">
-          <span class="btn-icon">⏸️</span> <span data-i18n="pauseScanning">Pause</span>
+        <button id="toggleScanning" class="btn btn-primary">
+          <span class="btn-icon">⏸</span> <span data-i18n="pauseScanning">Pause</span>
         </button>
         <button id="exportLeads" class="btn btn-secondary">
-          <span class="btn-icon">📤</span> <span data-i18n="exportCsv">Export CSV</span>
+          <span class="btn-icon">↓</span> <span data-i18n="exportCsv">Export CSV</span>
         </button>
       </div>
     </section>
