@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lead Hunter AI</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🎯</span>
+        <h1>Lead Hunter AI</h1>
+      </div>
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Activo</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="leads">Leads</button>
+      <button class="tab" data-tab="settings">Config</button>
+    </nav>
+
+    <!-- Dashboard Tab -->
+    <section id="dashboard" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-number" id="leadsToday">0</span>
+          <span class="stat-label">Leads Hoy</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="leadsTotal">0</span>
+          <span class="stat-label">Total</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="hotLeads">0</span>
+          <span class="stat-label">Calientes (8+)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-number" id="scannedComments">0</span>
+          <span class="stat-label">Escaneados</span>
+        </div>
+      </div>
+
+      <div class="recent-leads">
+        <h3>Leads Recientes</h3>
+        <div id="recentLeadsList" class="leads-list">
+          <p class="empty-state">No hay leads detectados aun. Navega por las plataformas para empezar.</p>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <button id="toggleScanning" class="btn btn-primary">
+          <span class="btn-icon">⏸️</span> Pausar Escaneo
+        </button>
+        <button id="exportLeads" class="btn btn-secondary">
+          <span class="btn-icon">📤</span> Exportar CSV
+        </button>
+      </div>
+    </section>
+
+    <!-- Leads Tab -->
+    <section id="leads" class="tab-content">
+      <div class="filters">
+        <select id="platformFilter">
+          <option value="all">Todas las plataformas</option>
+          <option value="linkedin">LinkedIn</option>
+          <option value="facebook">Facebook</option>
+          <option value="twitter">Twitter/X</option>
+          <option value="nextdoor">Nextdoor</option>
+          <option value="quora">Quora</option>
+          <option value="google">Google Reviews</option>
+          <option value="yelp">Yelp</option>
+          <option value="alignable">Alignable</option>
+          <option value="thumbtack">Thumbtack</option>
+          <option value="houzz">Houzz</option>
+          <option value="dentaltown">DentalTown</option>
+          <option value="hvac-talk">HVAC-Talk</option>
+          <option value="contractortalk">ContractorTalk</option>
+          <option value="youtube">YouTube</option>
+          <option value="tiktok">TikTok</option>
+        </select>
+        <select id="scoreFilter">
+          <option value="all">Todos los scores</option>
+          <option value="hot">Calientes (8-10)</option>
+          <option value="warm">Tibios (5-7)</option>
+          <option value="cold">Frios (1-4)</option>
+        </select>
+      </div>
+
+      <div id="allLeadsList" class="leads-list">
+        <p class="empty-state">No hay leads detectados.</p>
+      </div>
+    </section>
+
+    <!-- Settings Tab -->
+    <section id="settings" class="tab-content">
+      <div class="settings-group">
+        <h3>API Keys</h3>
+        <div class="setting-item">
+          <label for="geminiKey">Gemini API Key</label>
+          <input type="password" id="geminiKey" placeholder="AIza...">
+          <a href="https://aistudio.google.com/apikey" target="_blank" class="help-link">Obtener gratis</a>
+        </div>
+        <div class="setting-item">
+          <label for="hubspotKey">HubSpot API Key</label>
+          <input type="password" id="hubspotKey" placeholder="pat-na1-...">
+          <a href="https://app.hubspot.com/private-apps/" target="_blank" class="help-link">Crear Private App</a>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Filtros de Dolor</h3>
+        <div class="setting-item">
+          <label for="customKeywords">Keywords personalizadas (una por linea)</label>
+          <textarea id="customKeywords" rows="4" placeholder="no contestan
+pierdo llamadas
+necesito recepcionista"></textarea>
+        </div>
+        <div class="setting-item">
+          <label for="minWords">Minimo de palabras por comentario</label>
+          <input type="number" id="minWords" value="8" min="1" max="50">
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Industrias Objetivo</h3>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="industry" value="plumbing" checked> Plomeros</label>
+          <label><input type="checkbox" name="industry" value="hvac" checked> HVAC</label>
+          <label><input type="checkbox" name="industry" value="dental" checked> Dentistas</label>
+          <label><input type="checkbox" name="industry" value="contractors" checked> Contratistas</label>
+          <label><input type="checkbox" name="industry" value="medical" checked> Medicos</label>
+          <label><input type="checkbox" name="industry" value="legal" checked> Abogados</label>
+          <label><input type="checkbox" name="industry" value="realestate" checked> Real Estate</label>
+          <label><input type="checkbox" name="industry" value="automotive" checked> Automotriz</label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Notificaciones</h3>
+        <div class="setting-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="notifyHotLeads" checked>
+            <span>Notificar leads calientes (8+)</span>
+          </label>
+        </div>
+        <div class="setting-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="soundEnabled">
+            <span>Sonido de alerta</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Competidores a Detectar</h3>
+        <div class="setting-item">
+          <textarea id="competitors" rows="3" placeholder="Ruby
+Smith.ai
+Answering Service"></textarea>
+          <small>Si mencionan estos, estan buscando solucion activamente</small>
+        </div>
+      </div>
+
+      <button id="saveSettings" class="btn btn-primary btn-full">Guardar Configuracion</button>
+    </section>
+
+    <!-- Lead Detail Modal -->
+    <div id="leadModal" class="modal">
+      <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <div class="lead-detail">
+          <div class="lead-header">
+            <div class="lead-avatar" id="modalAvatar">👤</div>
+            <div class="lead-info">
+              <h3 id="modalName">Nombre del Lead</h3>
+              <p id="modalTitle">Titulo / Bio</p>
+              <span class="lead-platform" id="modalPlatform">LinkedIn</span>
+            </div>
+            <div class="lead-score" id="modalScore">8</div>
+          </div>
+
+          <div class="lead-section">
+            <h4>Comentario Original</h4>
+            <p id="modalComment" class="comment-text"></p>
+          </div>
+
+          <div class="lead-section">
+            <h4>Analisis IA</h4>
+            <p id="modalAnalysis"></p>
+          </div>
+
+          <div class="lead-section">
+            <h4>Mensaje Sugerido</h4>
+            <textarea id="modalDraft" rows="4"></textarea>
+            <button id="copyDraft" class="btn btn-secondary btn-small">Copiar</button>
+          </div>
+
+          <div class="lead-actions">
+            <button id="sendToHubspot" class="btn btn-primary">
+              <span class="btn-icon">📊</span> Enviar a HubSpot
+            </button>
+            <button id="openProfile" class="btn btn-secondary">
+              <span class="btn-icon">🔗</span> Ver Perfil
+            </button>
+            <button id="markContacted" class="btn btn-outline">
+              <span class="btn-icon">✅</span> Marcar Contactado
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+{
+  "manifest_version": 3,
+  "name": "Lead Hunter AI",
+  "version": "1.0.0",
+  "description": "Detecta leads automaticamente mientras navegas redes sociales. Encuentra duenos de negocios que necesitan AI receptionist.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.hubapi.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.facebook.com/*",
+    "https://*.twitter.com/*",
+    "https://*.x.com/*",
+    "https://*.nextdoor.com/*",
+    "https://*.quora.com/*",
+    "https://*.google.com/*",
+    "https://*.yelp.com/*",
+    "https://*.alignable.com/*",
+    "https://*.thumbtack.com/*",
+    "https://*.houzz.com/*",
+    "https://*.dentaltown.com/*",
+    "https://*.hvac-talk.com/*",
+    "https://*.contractortalk.com/*",
+    "https://*.youtube.com/*",
+    "https://*.tiktok.com/*"
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "js": ["content/platforms/linkedin.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.facebook.com/*"],
+      "js": ["content/platforms/facebook.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.twitter.com/*", "https://*.x.com/*"],
+      "js": ["content/platforms/twitter.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.nextdoor.com/*"],
+      "js": ["content/platforms/nextdoor.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.quora.com/*"],
+      "js": ["content/platforms/quora.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://www.google.com/maps/*", "https://www.google.com/search*"],
+      "js": ["content/platforms/google-reviews.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.yelp.com/*"],
+      "js": ["content/platforms/yelp.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.alignable.com/*"],
+      "js": ["content/platforms/alignable.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.thumbtack.com/*"],
+      "js": ["content/platforms/thumbtack.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.houzz.com/*"],
+      "js": ["content/platforms/houzz.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.dentaltown.com/*"],
+      "js": ["content/platforms/dentaltown.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.hvac-talk.com/*"],
+      "js": ["content/platforms/hvac-talk.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.contractortalk.com/*"],
+      "js": ["content/platforms/contractortalk.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.youtube.com/*"],
+      "js": ["content/platforms/youtube.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": ["https://*.tiktok.com/*"],
+      "js": ["content/platforms/tiktok.js", "content/scanner.js"],
+      "css": ["styles/highlight.css"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
