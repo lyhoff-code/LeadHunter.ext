@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,15 +16,15 @@
       </div>
       <div class="status-indicator" id="statusIndicator">
         <span class="status-dot"></span>
-        <span class="status-text">Activo</span>
+        <span class="status-text" data-i18n="statusActive">Active</span>
       </div>
     </header>
 
     <!-- Navigation Tabs -->
     <nav class="tabs">
-      <button class="tab active" data-tab="dashboard">Dashboard</button>
-      <button class="tab" data-tab="leads">Leads</button>
-      <button class="tab" data-tab="settings">Config</button>
+      <button class="tab active" data-tab="dashboard" data-i18n="tabDashboard">Dashboard</button>
+      <button class="tab" data-tab="leads" data-i18n="tabLeads">Leads</button>
+      <button class="tab" data-tab="settings" data-i18n="tabSettings">Settings</button>
     </nav>
 
     <!-- Dashboard Tab -->
@@ -32,62 +32,62 @@
       <div class="stats-grid">
         <div class="stat-card">
           <span class="stat-number" id="leadsToday">0</span>
-          <span class="stat-label">Leads Hoy</span>
+          <span class="stat-label" data-i18n="leadsToday">Leads Today</span>
         </div>
         <div class="stat-card">
           <span class="stat-number" id="leadsTotal">0</span>
-          <span class="stat-label">Total</span>
+          <span class="stat-label" data-i18n="leadsTotal">Total</span>
         </div>
         <div class="stat-card hot">
           <span class="stat-number" id="hotLeads">0</span>
-          <span class="stat-label">Calientes (8+)</span>
+          <span class="stat-label" data-i18n="hotLeads">Hot (8+)</span>
         </div>
         <div class="stat-card">
           <span class="stat-number" id="scannedComments">0</span>
-          <span class="stat-label">Escaneados</span>
+          <span class="stat-label" data-i18n="scanned">Scanned</span>
         </div>
       </div>
 
       <!-- Urgency Summary -->
       <div class="urgency-summary">
-        <h3>Por Urgencia</h3>
+        <h3 data-i18n="byUrgency">By Urgency</h3>
         <div class="urgency-bars">
           <div class="urgency-bar critical">
             <span class="urgency-emoji">🔥🔥</span>
-            <span class="urgency-label">Critico</span>
+            <span class="urgency-label" data-i18n="urgencyCritical">Critical</span>
             <span class="urgency-count" id="urgencyCritical">0</span>
           </div>
           <div class="urgency-bar high">
             <span class="urgency-emoji">🔥</span>
-            <span class="urgency-label">Alto</span>
+            <span class="urgency-label" data-i18n="urgencyHigh">High</span>
             <span class="urgency-count" id="urgencyHigh">0</span>
           </div>
           <div class="urgency-bar medium">
             <span class="urgency-emoji">⚡</span>
-            <span class="urgency-label">Medio</span>
+            <span class="urgency-label" data-i18n="urgencyMedium">Medium</span>
             <span class="urgency-count" id="urgencyMedium">0</span>
           </div>
           <div class="urgency-bar low">
             <span class="urgency-emoji">💤</span>
-            <span class="urgency-label">Bajo</span>
+            <span class="urgency-label" data-i18n="urgencyLow">Low</span>
             <span class="urgency-count" id="urgencyLow">0</span>
           </div>
         </div>
       </div>
 
       <div class="recent-leads">
-        <h3>Leads Recientes</h3>
+        <h3 data-i18n="recentLeads">Recent Leads</h3>
         <div id="recentLeadsList" class="leads-list">
-          <p class="empty-state">No hay leads detectados aun. Navega por las plataformas para empezar.</p>
+          <p class="empty-state" data-i18n="noLeadsYet">No leads detected yet. Browse the platforms to start.</p>
         </div>
       </div>
 
       <div class="quick-actions">
         <button id="toggleScanning" class="btn btn-primary">
-          <span class="btn-icon">⏸️</span> Pausar Escaneo
+          <span class="btn-icon">⏸️</span> <span data-i18n="pauseScanning">Pause Scanning</span>
         </button>
         <button id="exportLeads" class="btn btn-secondary">
-          <span class="btn-icon">📤</span> Exportar CSV
+          <span class="btn-icon">📤</span> <span data-i18n="exportCsv">Export CSV</span>
         </button>
       </div>
     </section>
@@ -96,7 +96,7 @@
     <section id="leads" class="tab-content">
       <div class="filters">
         <select id="platformFilter">
-          <option value="all">Todas las plataformas</option>
+          <option value="all" data-i18n="allPlatforms">All platforms</option>
           <option value="linkedin">LinkedIn</option>
           <option value="facebook">Facebook</option>
           <option value="twitter">Twitter/X</option>
@@ -114,149 +114,155 @@
           <option value="tiktok">TikTok</option>
         </select>
         <select id="scoreFilter">
-          <option value="all">Todos los scores</option>
-          <option value="hot">Calientes (8-10)</option>
-          <option value="warm">Tibios (5-7)</option>
-          <option value="cold">Frios (1-4)</option>
+          <option value="all" data-i18n="allScores">All scores</option>
+          <option value="hot" data-i18n="hot">Hot (8-10)</option>
+          <option value="warm" data-i18n="warm">Warm (5-7)</option>
+          <option value="cold" data-i18n="cold">Cold (1-4)</option>
         </select>
         <select id="urgencyFilter">
-          <option value="all">Toda urgencia</option>
-          <option value="critical">🔥🔥 Critico</option>
-          <option value="high">🔥 Alto</option>
-          <option value="medium">⚡ Medio</option>
-          <option value="low">💤 Bajo</option>
+          <option value="all" data-i18n="allUrgency">All urgency</option>
+          <option value="critical">🔥🔥 Critical</option>
+          <option value="high">🔥 High</option>
+          <option value="medium">⚡ Medium</option>
+          <option value="low">💤 Low</option>
         </select>
       </div>
 
       <div id="allLeadsList" class="leads-list">
-        <p class="empty-state">No hay leads detectados.</p>
+        <p class="empty-state" data-i18n="noLeads">No leads detected.</p>
       </div>
     </section>
 
     <!-- Settings Tab -->
     <section id="settings" class="tab-content">
       <div class="settings-group">
-        <h3>🤖 IA y Analisis</h3>
+        <h3>🌐 <span data-i18n="settingsLanguage">Language</span></h3>
         <div class="setting-item">
-          <label for="geminiKey">Gemini API Key</label>
+          <select id="languageSelect" class="language-select">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>🤖 <span data-i18n="settingsAI">AI & Analysis</span></h3>
+        <div class="setting-item">
+          <label for="geminiKey" data-i18n="geminiApiKey">Gemini API Key</label>
           <input type="password" id="geminiKey" placeholder="AIza...">
-          <a href="https://aistudio.google.com/apikey" target="_blank" class="help-link">Obtener gratis</a>
+          <a href="https://aistudio.google.com/apikey" target="_blank" class="help-link" data-i18n="getFree">Get free</a>
         </div>
       </div>
 
       <div class="settings-group">
-        <h3>📊 Integraciones CRM</h3>
+        <h3>📊 <span data-i18n="settingsCRM">CRM Integrations</span></h3>
         <div class="setting-item">
-          <label for="hubspotKey">HubSpot API Key</label>
+          <label for="hubspotKey" data-i18n="hubspotApiKey">HubSpot API Key</label>
           <input type="password" id="hubspotKey" placeholder="pat-na1-...">
-          <a href="https://app.hubspot.com/private-apps/" target="_blank" class="help-link">Crear Private App</a>
+          <a href="https://app.hubspot.com/private-apps/" target="_blank" class="help-link" data-i18n="createPrivateApp">Create Private App</a>
         </div>
       </div>
 
       <div class="settings-group">
-        <h3>🔗 Webhooks / n8n</h3>
+        <h3>🔗 <span data-i18n="settingsWebhook">Webhooks / n8n</span></h3>
         <div class="setting-item">
-          <label for="webhookUrl">Webhook URL</label>
-          <input type="url" id="webhookUrl" placeholder="https://tu-n8n.com/webhook/...">
-          <small>Envia leads automaticamente a n8n, Zapier, Make, etc.</small>
+          <label for="webhookUrl" data-i18n="webhookUrl">Webhook URL</label>
+          <input type="url" id="webhookUrl" placeholder="https://your-n8n.com/webhook/...">
+          <small data-i18n="webhookDesc">Automatically send leads to n8n, Zapier, Make, etc.</small>
         </div>
         <div class="setting-item">
           <label class="toggle-label">
             <input type="checkbox" id="autoSendWebhook">
-            <span>Enviar automaticamente al detectar lead</span>
+            <span data-i18n="autoSendWebhook">Send automatically when lead detected</span>
           </label>
         </div>
-        <button id="testWebhook" class="btn btn-small btn-outline">Probar Webhook</button>
+        <button id="testWebhook" class="btn btn-small btn-outline" data-i18n="testWebhook">Test Webhook</button>
       </div>
 
       <div class="settings-group">
-        <h3>📗 Google Sheets</h3>
+        <h3>📗 <span data-i18n="settingsSheets">Google Sheets</span></h3>
         <div class="setting-item">
-          <label for="googleSheetsUrl">Google Sheets Web App URL</label>
+          <label for="googleSheetsUrl" data-i18n="sheetsUrl">Google Sheets Web App URL</label>
           <input type="url" id="googleSheetsUrl" placeholder="https://script.google.com/...">
-          <a href="#" id="showSheetsInstructions" class="help-link">Ver instrucciones</a>
+          <a href="#" id="showSheetsInstructions" class="help-link" data-i18n="viewInstructions">View instructions</a>
         </div>
         <div class="setting-item">
           <label class="toggle-label">
             <input type="checkbox" id="autoSendSheets">
-            <span>Enviar automaticamente a Google Sheets</span>
+            <span data-i18n="autoSendSheets">Send automatically to Google Sheets</span>
           </label>
         </div>
       </div>
 
       <div class="settings-group">
-        <h3>📧 Buscador de Email (Hunter.io)</h3>
+        <h3>📧 <span data-i18n="settingsEmail">Email Finder (Hunter.io)</span></h3>
         <div class="setting-item">
-          <label for="hunterKey">Hunter.io API Key</label>
+          <label for="hunterKey" data-i18n="hunterApiKey">Hunter.io API Key</label>
           <input type="password" id="hunterKey" placeholder="...">
-          <a href="https://hunter.io/api-keys" target="_blank" class="help-link">25 busquedas gratis/mes</a>
+          <a href="https://hunter.io/api-keys" target="_blank" class="help-link" data-i18n="freeSearches">25 free searches/month</a>
         </div>
         <div class="setting-item">
           <label class="toggle-label">
             <input type="checkbox" id="autoFindEmail">
-            <span>Buscar email automaticamente</span>
+            <span data-i18n="autoFindEmail">Find email automatically</span>
           </label>
         </div>
         <div id="hunterCredits" class="credits-display" style="display:none;">
-          <span>Busquedas restantes: <strong id="hunterCreditsCount">-</strong></span>
+          <span><span data-i18n="searchesRemaining">Searches remaining</span>: <strong id="hunterCreditsCount">-</strong></span>
         </div>
       </div>
 
       <div class="settings-group">
-        <h3>🎯 Filtros de Dolor</h3>
+        <h3>🎯 <span data-i18n="settingsFilters">Pain Filters</span></h3>
         <div class="setting-item">
-          <label for="customKeywords">Keywords personalizadas (una por linea)</label>
-          <textarea id="customKeywords" rows="4" placeholder="no contestan
-pierdo llamadas
-necesito recepcionista"></textarea>
+          <label for="customKeywords" data-i18n="customKeywords">Custom keywords (one per line)</label>
+          <textarea id="customKeywords" rows="4" placeholder="never answer&#10;missed calls&#10;need receptionist"></textarea>
         </div>
         <div class="setting-item">
-          <label for="minWords">Minimo de palabras por comentario</label>
+          <label for="minWords" data-i18n="minWords">Minimum words per comment</label>
           <input type="number" id="minWords" value="8" min="1" max="50">
         </div>
       </div>
 
       <div class="settings-group">
-        <h3>🏢 Industrias Objetivo</h3>
+        <h3>🏢 <span data-i18n="settingsIndustries">Target Industries</span></h3>
         <div class="checkbox-group">
-          <label><input type="checkbox" name="industry" value="plumbing" checked> Plomeros</label>
-          <label><input type="checkbox" name="industry" value="hvac" checked> HVAC</label>
-          <label><input type="checkbox" name="industry" value="dental" checked> Dentistas</label>
-          <label><input type="checkbox" name="industry" value="contractors" checked> Contratistas</label>
-          <label><input type="checkbox" name="industry" value="medical" checked> Medicos</label>
-          <label><input type="checkbox" name="industry" value="legal" checked> Abogados</label>
-          <label><input type="checkbox" name="industry" value="realestate" checked> Real Estate</label>
-          <label><input type="checkbox" name="industry" value="automotive" checked> Automotriz</label>
+          <label><input type="checkbox" name="industry" value="plumbing" checked> <span data-i18n="industryPlumbing">Plumbers</span></label>
+          <label><input type="checkbox" name="industry" value="hvac" checked> <span data-i18n="industryHvac">HVAC</span></label>
+          <label><input type="checkbox" name="industry" value="dental" checked> <span data-i18n="industryDental">Dentists</span></label>
+          <label><input type="checkbox" name="industry" value="contractors" checked> <span data-i18n="industryContractors">Contractors</span></label>
+          <label><input type="checkbox" name="industry" value="medical" checked> <span data-i18n="industryMedical">Medical</span></label>
+          <label><input type="checkbox" name="industry" value="legal" checked> <span data-i18n="industryLegal">Legal</span></label>
+          <label><input type="checkbox" name="industry" value="realestate" checked> <span data-i18n="industryRealestate">Real Estate</span></label>
+          <label><input type="checkbox" name="industry" value="automotive" checked> <span data-i18n="industryAutomotive">Automotive</span></label>
         </div>
       </div>
 
       <div class="settings-group">
-        <h3>🔔 Notificaciones</h3>
+        <h3>🔔 <span data-i18n="settingsNotifications">Notifications</span></h3>
         <div class="setting-item">
           <label class="toggle-label">
             <input type="checkbox" id="notifyHotLeads" checked>
-            <span>Notificar leads calientes (8+)</span>
+            <span data-i18n="notifyHotLeads">Notify hot leads (8+)</span>
           </label>
         </div>
         <div class="setting-item">
           <label class="toggle-label">
             <input type="checkbox" id="soundEnabled">
-            <span>Sonido de alerta</span>
+            <span data-i18n="soundAlert">Sound alert</span>
           </label>
         </div>
       </div>
 
       <div class="settings-group">
-        <h3>🎯 Competidores a Detectar</h3>
+        <h3>🎯 <span data-i18n="settingsCompetitors">Competitors to Detect</span></h3>
         <div class="setting-item">
-          <textarea id="competitors" rows="3" placeholder="Ruby
-Smith.ai
-Answering Service"></textarea>
-          <small>Si mencionan estos, estan buscando solucion activamente</small>
+          <textarea id="competitors" rows="3" placeholder="Ruby&#10;Smith.ai&#10;Answering Service"></textarea>
+          <small data-i18n="competitorsDesc">If they mention these, they are actively looking for a solution</small>
         </div>
       </div>
 
-      <button id="saveSettings" class="btn btn-primary btn-full">Guardar Configuracion</button>
+      <button id="saveSettings" class="btn btn-primary btn-full" data-i18n="saveSettings">Save Settings</button>
     </section>
 
     <!-- Lead Detail Modal -->
@@ -267,11 +273,11 @@ Answering Service"></textarea>
           <div class="lead-header">
             <div class="lead-avatar" id="modalAvatar">👤</div>
             <div class="lead-info">
-              <h3 id="modalName">Nombre del Lead</h3>
-              <p id="modalTitle">Titulo / Bio</p>
+              <h3 id="modalName">Lead Name</h3>
+              <p id="modalTitle">Title / Bio</p>
               <div class="lead-badges">
                 <span class="lead-platform" id="modalPlatform">LinkedIn</span>
-                <span class="lead-urgency" id="modalUrgency">⚡ Medio</span>
+                <span class="lead-urgency" id="modalUrgency">⚡ Medium</span>
               </div>
             </div>
             <div class="lead-score-big">
@@ -283,25 +289,25 @@ Answering Service"></textarea>
           <!-- Urgency Timer -->
           <div class="urgency-timer" id="urgencyTimer">
             <span class="timer-icon">⏰</span>
-            <span class="timer-text" id="timerText">Responder en: 12h</span>
-            <span class="timer-age" id="timerAge">Hace 2h</span>
+            <span class="timer-text" id="timerText">Respond in: 12h</span>
+            <span class="timer-age" id="timerAge">2h ago</span>
           </div>
 
           <!-- Previous Contact Warning -->
           <div class="previous-contact-warning" id="previousContactWarning" style="display:none;">
-            ⚠️ Ya contactaste a esta persona antes
+            ⚠️ <span data-i18n="previousContact">You already contacted this person before</span>
           </div>
 
           <div class="lead-section">
-            <h4>Comentario Original</h4>
+            <h4 data-i18n="originalComment">Original Comment</h4>
             <p id="modalComment" class="comment-text"></p>
           </div>
 
           <div class="lead-section">
-            <h4>Analisis IA</h4>
+            <h4 data-i18n="aiAnalysis">AI Analysis</h4>
             <p id="modalAnalysis"></p>
             <div class="analysis-details">
-              <span class="detail-badge" id="modalIndustry">Industria: -</span>
+              <span class="detail-badge" id="modalIndustry">Industry: -</span>
               <span class="detail-badge" id="modalIntent">Intent: -</span>
               <span class="detail-badge" id="modalApproach">Approach: -</span>
             </div>
@@ -309,34 +315,34 @@ Answering Service"></textarea>
 
           <!-- Pain Points -->
           <div class="lead-section" id="painPointsSection" style="display:none;">
-            <h4>Puntos de Dolor Detectados</h4>
+            <h4 data-i18n="painPointsDetected">Pain Points Detected</h4>
             <ul id="modalPainPoints" class="pain-points-list"></ul>
           </div>
 
           <div class="lead-section">
-            <h4>Mensaje Sugerido</h4>
+            <h4 data-i18n="suggestedMessage">Suggested Message</h4>
             <textarea id="modalDraft" rows="5"></textarea>
             <div class="draft-actions">
-              <button id="copyDraft" class="btn btn-secondary btn-small">📋 Copiar</button>
-              <button id="quickReply" class="btn btn-primary btn-small">💬 Respuesta Rapida</button>
+              <button id="copyDraft" class="btn btn-secondary btn-small">📋 <span data-i18n="copy">Copy</span></button>
+              <button id="quickReply" class="btn btn-primary btn-small">💬 <span data-i18n="quickReply">Quick Reply</span></button>
             </div>
           </div>
 
           <!-- Lead Contact Info -->
           <div class="lead-section contact-info" id="contactInfoSection">
-            <h4>Informacion de Contacto</h4>
+            <h4 data-i18n="contactInfo">Contact Information</h4>
             <div class="contact-fields">
               <div class="contact-field">
-                <label>Email:</label>
+                <label data-i18n="email">Email:</label>
                 <span id="modalEmail">-</span>
-                <button id="findEmail" class="btn btn-tiny">🔍 Buscar</button>
+                <button id="findEmail" class="btn btn-tiny">🔍 <span data-i18n="search">Search</span></button>
               </div>
               <div class="contact-field">
-                <label>Empresa:</label>
-                <input type="text" id="modalCompany" placeholder="Agregar empresa...">
+                <label data-i18n="company">Company:</label>
+                <input type="text" id="modalCompany" data-placeholder="addCompany" placeholder="Add company...">
               </div>
               <div class="contact-field">
-                <label>Website:</label>
+                <label data-i18n="website">Website:</label>
                 <input type="text" id="modalWebsite" placeholder="https://...">
               </div>
             </div>
@@ -344,31 +350,31 @@ Answering Service"></textarea>
 
           <!-- Notes -->
           <div class="lead-section">
-            <h4>Notas</h4>
-            <textarea id="modalNotes" rows="2" placeholder="Agregar notas sobre este lead..."></textarea>
+            <h4 data-i18n="notes">Notes</h4>
+            <textarea id="modalNotes" rows="2" data-placeholder="addNotes" placeholder="Add notes about this lead..."></textarea>
           </div>
 
           <div class="lead-actions">
             <button id="sendToHubspot" class="btn btn-primary">
-              <span class="btn-icon">📊</span> HubSpot
+              <span class="btn-icon">📊</span> <span data-i18n="sendToHubspot">HubSpot</span>
             </button>
             <button id="sendToWebhook" class="btn btn-secondary">
-              <span class="btn-icon">🔗</span> Webhook
+              <span class="btn-icon">🔗</span> <span data-i18n="sendToWebhook">Webhook</span>
             </button>
             <button id="sendToSheets" class="btn btn-secondary">
-              <span class="btn-icon">📗</span> Sheets
+              <span class="btn-icon">📗</span> <span data-i18n="sendToSheets">Sheets</span>
             </button>
             <button id="captureScreenshot" class="btn btn-outline">
-              <span class="btn-icon">📸</span> Screenshot
+              <span class="btn-icon">📸</span> <span data-i18n="screenshot">Screenshot</span>
             </button>
           </div>
 
           <div class="lead-actions secondary">
             <button id="openProfile" class="btn btn-outline">
-              <span class="btn-icon">🔗</span> Ver Perfil
+              <span class="btn-icon">🔗</span> <span data-i18n="viewProfile">View Profile</span>
             </button>
             <button id="markContacted" class="btn btn-outline">
-              <span class="btn-icon">✅</span> Marcar Contactado
+              <span class="btn-icon">✅</span> <span data-i18n="markContacted">Mark Contacted</span>
             </button>
           </div>
         </div>
@@ -379,21 +385,21 @@ Answering Service"></textarea>
     <div id="sheetsModal" class="modal">
       <div class="modal-content modal-large">
         <button class="modal-close" id="closeSheetsModal">&times;</button>
-        <h2>Configurar Google Sheets</h2>
+        <h2 data-i18n="setupSheets">Setup Google Sheets</h2>
         <div class="instructions">
           <ol>
-            <li>Crea una nueva Google Sheet</li>
-            <li>Ve a <strong>Extensiones > Apps Script</strong></li>
-            <li>Pega este codigo:</li>
+            <li data-i18n="sheetsStep1">Create a new Google Sheet</li>
+            <li data-i18n="sheetsStep2">Go to Extensions > Apps Script</li>
+            <li data-i18n="sheetsStep3">Paste this code:</li>
           </ol>
           <pre id="appsScriptCode" class="code-block"></pre>
-          <button id="copyAppsScript" class="btn btn-secondary">📋 Copiar Codigo</button>
+          <button id="copyAppsScript" class="btn btn-secondary">📋 <span data-i18n="copyCode">Copy Code</span></button>
           <ol start="4">
-            <li>Click en <strong>Implementar > Nueva implementacion</strong></li>
-            <li>Selecciona <strong>"Aplicacion web"</strong></li>
-            <li>En "Quien tiene acceso" selecciona <strong>"Cualquier persona"</strong></li>
-            <li>Click en Implementar y copia la URL</li>
-            <li>Pega la URL en la configuracion de Lead Hunter</li>
+            <li data-i18n="sheetsStep4">Click Deploy > New deployment</li>
+            <li data-i18n="sheetsStep5">Select "Web app"</li>
+            <li data-i18n="sheetsStep6">In "Who has access" select "Anyone"</li>
+            <li data-i18n="sheetsStep7">Click Deploy and copy the URL</li>
+            <li data-i18n="sheetsStep8">Paste the URL in Lead Hunter settings</li>
           </ol>
         </div>
       </div>

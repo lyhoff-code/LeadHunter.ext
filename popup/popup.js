@@ -1,6 +1,7 @@
 // Lead Hunter AI - Popup Controller
 
 import { generateAppsScriptCode } from '../utils/google-sheets.js';
+import { translations, t, getCurrentLanguage } from '../utils/i18n.js';
 
 class PopupController {
   constructor() {
@@ -8,16 +9,58 @@ class PopupController {
     this.leads = [];
     this.settings = {};
     this.currentLead = null;
+    this.currentLanguage = 'en';
     this.init();
   }
 
   async init() {
     await this.loadData();
+    this.currentLanguage = this.settings.language || 'en';
+    this.applyTranslations();
     this.setupEventListeners();
     this.renderDashboard();
     this.renderLeadsList();
     this.loadSettings();
     this.loadAppsScriptCode();
+  }
+
+  /**
+   * Apply translations to all elements with data-i18n attribute
+   */
+  applyTranslations() {
+    const lang = this.currentLanguage;
+
+    // Update all elements with data-i18n attribute
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      const translation = t(key, lang);
+
+      if (el.tagName === 'INPUT' && el.type === 'text') {
+        el.placeholder = translation;
+      } else if (el.tagName === 'TEXTAREA') {
+        el.placeholder = translation;
+      } else {
+        el.textContent = translation;
+      }
+    });
+
+    // Update language selector
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect) {
+      languageSelect.value = lang;
+    }
+  }
+
+  /**
+   * Change language and save preference
+   */
+  async changeLanguage(lang) {
+    this.currentLanguage = lang;
+    this.settings.language = lang;
+    await chrome.storage.local.set({ settings: this.settings });
+    this.applyTranslations();
+    this.renderDashboard();
+    this.renderLeadsList();
   }
 
   async loadData() {
@@ -68,6 +111,11 @@ class PopupController {
     document.getElementById('showSheetsInstructions').addEventListener('click', (e) => {
       e.preventDefault();
       this.showSheetsModal();
+    });
+
+    // Language selector
+    document.getElementById('languageSelect').addEventListener('change', (e) => {
+      this.changeLanguage(e.target.value);
     });
 
     // Modal close buttons
@@ -148,7 +196,7 @@ class PopupController {
     const recent = this.leads.slice(0, 5);
 
     if (recent.length === 0) {
-      recentList.innerHTML = '<p class="empty-state">No hay leads detectados aun. Navega por las plataformas para empezar.</p>';
+      recentList.innerHTML = `<p class="empty-state">${t('noLeadsYet', this.currentLanguage)}</p>`;
       return;
     }
 
@@ -160,7 +208,7 @@ class PopupController {
     const list = document.getElementById('allLeadsList');
 
     if (this.leads.length === 0) {
-      list.innerHTML = '<p class="empty-state">No hay leads detectados.</p>';
+      list.innerHTML = `<p class="empty-state">${t('noLeads', this.currentLanguage)}</p>`;
       return;
     }
 
@@ -237,7 +285,7 @@ class PopupController {
 
     const list = document.getElementById('allLeadsList');
     if (filtered.length === 0) {
-      list.innerHTML = '<p class="empty-state">No hay leads con estos filtros.</p>';
+      list.innerHTML = `<p class="empty-state">${t('noLeadsFilter', this.currentLanguage)}</p>`;
       return;
     }
 
@@ -254,7 +302,7 @@ class PopupController {
     document.getElementById('modalPlatform').textContent = lead.platform;
     document.getElementById('modalScore').textContent = lead.score;
     document.getElementById('modalComment').textContent = lead.comment;
-    document.getElementById('modalAnalysis').textContent = lead.analysis || 'Analisis no disponible';
+    document.getElementById('modalAnalysis').textContent = lead.analysis || t('analysisNotAvailable', this.currentLanguage);
     document.getElementById('modalDraft').value = lead.messageDraft || '';
 
     // Urgency
@@ -270,9 +318,9 @@ class PopupController {
     warningEl.style.display = lead.previouslyContacted ? 'block' : 'none';
 
     // Analysis details
-    document.getElementById('modalIndustry').textContent = `Industria: ${lead.industry || '-'}`;
-    document.getElementById('modalIntent').textContent = `Intent: ${lead.buyingIntent || '-'}`;
-    document.getElementById('modalApproach').textContent = `Approach: ${lead.suggestedApproach || '-'}`;
+    document.getElementById('modalIndustry').textContent = `${t('industry', this.currentLanguage)}: ${lead.industry || '-'}`;
+    document.getElementById('modalIntent').textContent = `${t('intent', this.currentLanguage)}: ${lead.buyingIntent || '-'}`;
+    document.getElementById('modalApproach').textContent = `${t('approach', this.currentLanguage)}: ${lead.suggestedApproach || '-'}`;
 
     // Pain points
     const painPointsSection = document.getElementById('painPointsSection');
@@ -293,10 +341,10 @@ class PopupController {
     // Update contacted button state
     const contactedBtn = document.getElementById('markContacted');
     if (lead.contacted) {
-      contactedBtn.innerHTML = '<span class="btn-icon">✅</span> Contactado';
+      contactedBtn.innerHTML = `<span class="btn-icon">✅</span> ${t('contacted', this.currentLanguage)}`;
       contactedBtn.disabled = true;
     } else {
-      contactedBtn.innerHTML = '<span class="btn-icon">✅</span> Marcar Contactado';
+      contactedBtn.innerHTML = `<span class="btn-icon">✅</span> ${t('markContacted', this.currentLanguage)}`;
       contactedBtn.disabled = false;
     }
 
@@ -311,7 +359,7 @@ class PopupController {
     const age = Date.now() - new Date(lead.timestamp).getTime();
     const ageFormatted = this.formatAge(age);
 
-    timerAgeEl.textContent = `Hace ${ageFormatted}`;
+    timerAgeEl.textContent = `${ageFormatted} ${t('ago', this.currentLanguage)}`;
 
     // Calculate response deadline based on urgency
     const deadlines = {
@@ -325,10 +373,10 @@ class PopupController {
     const remaining = deadline - age;
 
     if (remaining <= 0) {
-      timerTextEl.textContent = 'Tiempo vencido!';
+      timerTextEl.textContent = t('timeExpired', this.currentLanguage);
       timerEl.classList.add('expired');
     } else {
-      timerTextEl.textContent = `Responder en: ${this.formatAge(remaining)}`;
+      timerTextEl.textContent = `${t('respondIn', this.currentLanguage)}: ${this.formatAge(remaining)}`;
       timerEl.classList.remove('expired');
       if (lead.urgencyLevel === 'critical') {
         timerEl.classList.add('critical');
@@ -344,10 +392,10 @@ class PopupController {
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
 
-    if (days > 0) return `${days}d ${hours % 24}h`;
-    if (hours > 0) return `${hours}h ${minutes % 60}m`;
-    if (minutes > 0) return `${minutes}m`;
-    return 'Ahora';
+    if (days > 0) return `${days}${t('days', this.currentLanguage)} ${hours % 24}${t('hours', this.currentLanguage)}`;
+    if (hours > 0) return `${hours}${t('hours', this.currentLanguage)} ${minutes % 60}${t('minutes', this.currentLanguage)}`;
+    if (minutes > 0) return `${minutes}${t('minutes', this.currentLanguage)}`;
+    return t('now', this.currentLanguage);
   }
 
   closeModal() {
@@ -391,8 +439,8 @@ class PopupController {
     await navigator.clipboard.writeText(code);
 
     const btn = document.getElementById('copyAppsScript');
-    btn.textContent = 'Copiado!';
-    setTimeout(() => btn.textContent = '📋 Copiar Codigo', 2000);
+    btn.textContent = `${t('copied', this.currentLanguage)}`;
+    setTimeout(() => btn.textContent = `📋 ${t('copyCode', this.currentLanguage)}`, 2000);
   }
 
   async copyDraft() {
@@ -401,7 +449,7 @@ class PopupController {
 
     const btn = document.getElementById('copyDraft');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '✅ Copiado!';
+    btn.innerHTML = `✅ ${t('copied', this.currentLanguage)}`;
     setTimeout(() => btn.innerHTML = originalText, 2000);
   }
 
@@ -553,7 +601,7 @@ class PopupController {
         await this.saveLeads();
         btn.innerHTML = '✅';
       } else {
-        throw new Error(response.error || 'No encontrado');
+        throw new Error(response.error || 'Not found');
       }
     } catch (error) {
       btn.innerHTML = '❌';
@@ -562,20 +610,20 @@ class PopupController {
 
     setTimeout(() => {
       btn.disabled = false;
-      btn.innerHTML = '🔍 Buscar';
+      btn.innerHTML = `🔍 ${t('search', this.currentLanguage)}`;
     }, 2000);
   }
 
   async testWebhook() {
     const url = document.getElementById('webhookUrl').value;
     if (!url) {
-      alert('Ingresa una URL de webhook primero');
+      alert(t('enterWebhookFirst', this.currentLanguage));
       return;
     }
 
     const btn = document.getElementById('testWebhook');
     btn.disabled = true;
-    btn.textContent = 'Probando...';
+    btn.textContent = `${t('testing', this.currentLanguage)}`;
 
     try {
       const response = await chrome.runtime.sendMessage({
@@ -584,21 +632,21 @@ class PopupController {
       });
 
       if (response.success) {
-        btn.textContent = 'Exitoso!';
+        btn.textContent = `${t('success', this.currentLanguage)}`;
         btn.style.background = '#10b981';
         btn.style.color = 'white';
       } else {
         throw new Error('Failed');
       }
     } catch (error) {
-      btn.textContent = 'Error';
+      btn.textContent = t('error', this.currentLanguage);
       btn.style.background = '#ef4444';
       btn.style.color = 'white';
     }
 
     setTimeout(() => {
       btn.disabled = false;
-      btn.textContent = 'Probar Webhook';
+      btn.textContent = t('testWebhook', this.currentLanguage);
       btn.style.background = '';
       btn.style.color = '';
     }, 3000);
@@ -628,7 +676,7 @@ class PopupController {
     });
 
     const btn = document.getElementById('markContacted');
-    btn.innerHTML = '<span class="btn-icon">✅</span> Contactado';
+    btn.innerHTML = `<span class="btn-icon">✅</span> ${t('contacted', this.currentLanguage)}`;
     btn.disabled = true;
   }
 
@@ -640,13 +688,13 @@ class PopupController {
     const indicator = document.getElementById('statusIndicator');
 
     if (this.settings.scanning) {
-      btn.innerHTML = '<span class="btn-icon">⏸️</span> Pausar Escaneo';
+      btn.innerHTML = `<span class="btn-icon">⏸️</span> ${t('pauseScanning', this.currentLanguage)}`;
       indicator.classList.remove('paused');
-      indicator.querySelector('.status-text').textContent = 'Activo';
+      indicator.querySelector('.status-text').textContent = t('statusActive', this.currentLanguage);
     } else {
-      btn.innerHTML = '<span class="btn-icon">▶️</span> Reanudar Escaneo';
+      btn.innerHTML = `<span class="btn-icon">▶️</span> ${t('resumeScanning', this.currentLanguage)}`;
       indicator.classList.add('paused');
-      indicator.querySelector('.status-text').textContent = 'Pausado';
+      indicator.querySelector('.status-text').textContent = t('statusPaused', this.currentLanguage);
     }
 
     chrome.runtime.sendMessage({ type: 'TOGGLE_SCANNING', enabled: this.settings.scanning });
@@ -654,11 +702,11 @@ class PopupController {
 
   exportLeads() {
     if (this.leads.length === 0) {
-      alert('No hay leads para exportar');
+      alert(t('noLeadsToExport', this.currentLanguage));
       return;
     }
 
-    const headers = ['Nombre', 'Plataforma', 'Score', 'Urgencia', 'Email', 'Empresa', 'Comentario', 'Perfil', 'Fecha', 'Contactado'];
+    const headers = ['Name', 'Platform', 'Score', 'Urgency', 'Email', 'Company', 'Comment', 'Profile', 'Date', 'Contacted'];
     const rows = this.leads.map(l => [
       l.name || '',
       l.platform,
@@ -669,7 +717,7 @@ class PopupController {
       `"${(l.comment || '').replace(/"/g, '""')}"`,
       l.profileUrl || '',
       new Date(l.timestamp).toLocaleString(),
-      l.contacted ? 'Si' : 'No'
+      l.contacted ? 'Yes' : 'No'
     ]);
 
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
@@ -709,9 +757,15 @@ class PopupController {
     if (!this.settings.scanning) {
       const btn = document.getElementById('toggleScanning');
       const indicator = document.getElementById('statusIndicator');
-      btn.innerHTML = '<span class="btn-icon">▶️</span> Reanudar Escaneo';
+      btn.innerHTML = `<span class="btn-icon">▶️</span> ${t('resumeScanning', this.currentLanguage)}`;
       indicator.classList.add('paused');
-      indicator.querySelector('.status-text').textContent = 'Pausado';
+      indicator.querySelector('.status-text').textContent = t('statusPaused', this.currentLanguage);
+    }
+
+    // Update language selector
+    const languageSelect = document.getElementById('languageSelect');
+    if (languageSelect && this.settings.language) {
+      languageSelect.value = this.settings.language;
     }
 
     // Check Hunter credits if key exists
@@ -764,11 +818,11 @@ class PopupController {
 
     const btn = document.getElementById('saveSettings');
     const originalText = btn.textContent;
-    btn.textContent = 'Guardado!';
+    btn.textContent = t('saved', this.currentLanguage);
     btn.style.background = '#10b981';
 
     setTimeout(() => {
-      btn.textContent = originalText;
+      btn.textContent = t('saveSettings', this.currentLanguage);
       btn.style.background = '';
     }, 2000);
   }
@@ -780,10 +834,10 @@ class PopupController {
   getTimeAgo(timestamp) {
     const seconds = Math.floor((new Date() - new Date(timestamp)) / 1000);
 
-    if (seconds < 60) return 'Ahora';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
-    return `${Math.floor(seconds / 86400)}d`;
+    if (seconds < 60) return t('now', this.currentLanguage);
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}${t('minutes', this.currentLanguage)}`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}${t('hours', this.currentLanguage)}`;
+    return `${Math.floor(seconds / 86400)}${t('days', this.currentLanguage)}`;
   }
 
   capitalizeFirst(str) {
