@@ -44,7 +44,7 @@ function getDefaultSettings() {
     minWords: 8,
     customKeywords: '',
     competitors: 'Ruby\nSmith.ai\nAnswering Service',
-    industries: ['plumbing', 'hvac', 'dental', 'contractors', 'medical', 'legal', 'realestate', 'automotive'],
+    industries: ['plumbing', 'hvac', 'electrical', 'contractors'],
     notifyHotLeads: true,
     soundEnabled: false,
     scanning: true,

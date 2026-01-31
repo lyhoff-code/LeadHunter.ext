@@ -658,6 +658,51 @@ body {
   accent-color: var(--accent);
 }
 
+/* Industry Categories */
+.industry-category {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--gray-50);
+  border-radius: 10px;
+  border: 1px solid var(--gray-200);
+}
+
+.industry-category:last-child {
+  margin-bottom: 0;
+}
+
+.category-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.industry-category .checkbox-group {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+}
+
+.industry-category .checkbox-group label {
+  padding: 6px 8px;
+  font-size: 11px;
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: 6px;
+}
+
+.industry-category .checkbox-group label:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+.industry-category .checkbox-group input[type="checkbox"]:checked + span {
+  color: var(--accent-dark);
+  font-weight: 500;
+}
+
 .language-select {
   width: 100%;
   padding: 10px 14px;
