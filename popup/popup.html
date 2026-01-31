@@ -38,13 +38,40 @@
           <span class="stat-number" id="leadsTotal">0</span>
           <span class="stat-label">Total</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card hot">
           <span class="stat-number" id="hotLeads">0</span>
           <span class="stat-label">Calientes (8+)</span>
         </div>
         <div class="stat-card">
           <span class="stat-number" id="scannedComments">0</span>
           <span class="stat-label">Escaneados</span>
+        </div>
+      </div>
+
+      <!-- Urgency Summary -->
+      <div class="urgency-summary">
+        <h3>Por Urgencia</h3>
+        <div class="urgency-bars">
+          <div class="urgency-bar critical">
+            <span class="urgency-emoji">🔥🔥</span>
+            <span class="urgency-label">Critico</span>
+            <span class="urgency-count" id="urgencyCritical">0</span>
+          </div>
+          <div class="urgency-bar high">
+            <span class="urgency-emoji">🔥</span>
+            <span class="urgency-label">Alto</span>
+            <span class="urgency-count" id="urgencyHigh">0</span>
+          </div>
+          <div class="urgency-bar medium">
+            <span class="urgency-emoji">⚡</span>
+            <span class="urgency-label">Medio</span>
+            <span class="urgency-count" id="urgencyMedium">0</span>
+          </div>
+          <div class="urgency-bar low">
+            <span class="urgency-emoji">💤</span>
+            <span class="urgency-label">Bajo</span>
+            <span class="urgency-count" id="urgencyLow">0</span>
+          </div>
         </div>
       </div>
 
@@ -92,6 +119,13 @@
           <option value="warm">Tibios (5-7)</option>
           <option value="cold">Frios (1-4)</option>
         </select>
+        <select id="urgencyFilter">
+          <option value="all">Toda urgencia</option>
+          <option value="critical">🔥🔥 Critico</option>
+          <option value="high">🔥 Alto</option>
+          <option value="medium">⚡ Medio</option>
+          <option value="low">💤 Bajo</option>
+        </select>
       </div>
 
       <div id="allLeadsList" class="leads-list">
@@ -102,12 +136,16 @@
     <!-- Settings Tab -->
     <section id="settings" class="tab-content">
       <div class="settings-group">
-        <h3>API Keys</h3>
+        <h3>🤖 IA y Analisis</h3>
         <div class="setting-item">
           <label for="geminiKey">Gemini API Key</label>
           <input type="password" id="geminiKey" placeholder="AIza...">
           <a href="https://aistudio.google.com/apikey" target="_blank" class="help-link">Obtener gratis</a>
         </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>📊 Integraciones CRM</h3>
         <div class="setting-item">
           <label for="hubspotKey">HubSpot API Key</label>
           <input type="password" id="hubspotKey" placeholder="pat-na1-...">
@@ -116,7 +154,56 @@
       </div>
 
       <div class="settings-group">
-        <h3>Filtros de Dolor</h3>
+        <h3>🔗 Webhooks / n8n</h3>
+        <div class="setting-item">
+          <label for="webhookUrl">Webhook URL</label>
+          <input type="url" id="webhookUrl" placeholder="https://tu-n8n.com/webhook/...">
+          <small>Envia leads automaticamente a n8n, Zapier, Make, etc.</small>
+        </div>
+        <div class="setting-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="autoSendWebhook">
+            <span>Enviar automaticamente al detectar lead</span>
+          </label>
+        </div>
+        <button id="testWebhook" class="btn btn-small btn-outline">Probar Webhook</button>
+      </div>
+
+      <div class="settings-group">
+        <h3>📗 Google Sheets</h3>
+        <div class="setting-item">
+          <label for="googleSheetsUrl">Google Sheets Web App URL</label>
+          <input type="url" id="googleSheetsUrl" placeholder="https://script.google.com/...">
+          <a href="#" id="showSheetsInstructions" class="help-link">Ver instrucciones</a>
+        </div>
+        <div class="setting-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="autoSendSheets">
+            <span>Enviar automaticamente a Google Sheets</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>📧 Buscador de Email (Hunter.io)</h3>
+        <div class="setting-item">
+          <label for="hunterKey">Hunter.io API Key</label>
+          <input type="password" id="hunterKey" placeholder="...">
+          <a href="https://hunter.io/api-keys" target="_blank" class="help-link">25 busquedas gratis/mes</a>
+        </div>
+        <div class="setting-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="autoFindEmail">
+            <span>Buscar email automaticamente</span>
+          </label>
+        </div>
+        <div id="hunterCredits" class="credits-display" style="display:none;">
+          <span>Busquedas restantes: <strong id="hunterCreditsCount">-</strong></span>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>🎯 Filtros de Dolor</h3>
         <div class="setting-item">
           <label for="customKeywords">Keywords personalizadas (una por linea)</label>
           <textarea id="customKeywords" rows="4" placeholder="no contestan
@@ -130,7 +217,7 @@ necesito recepcionista"></textarea>
       </div>
 
       <div class="settings-group">
-        <h3>Industrias Objetivo</h3>
+        <h3>🏢 Industrias Objetivo</h3>
         <div class="checkbox-group">
           <label><input type="checkbox" name="industry" value="plumbing" checked> Plomeros</label>
           <label><input type="checkbox" name="industry" value="hvac" checked> HVAC</label>
@@ -144,7 +231,7 @@ necesito recepcionista"></textarea>
       </div>
 
       <div class="settings-group">
-        <h3>Notificaciones</h3>
+        <h3>🔔 Notificaciones</h3>
         <div class="setting-item">
           <label class="toggle-label">
             <input type="checkbox" id="notifyHotLeads" checked>
@@ -160,7 +247,7 @@ necesito recepcionista"></textarea>
       </div>
 
       <div class="settings-group">
-        <h3>Competidores a Detectar</h3>
+        <h3>🎯 Competidores a Detectar</h3>
         <div class="setting-item">
           <textarea id="competitors" rows="3" placeholder="Ruby
 Smith.ai
@@ -182,9 +269,27 @@ Answering Service"></textarea>
             <div class="lead-info">
               <h3 id="modalName">Nombre del Lead</h3>
               <p id="modalTitle">Titulo / Bio</p>
-              <span class="lead-platform" id="modalPlatform">LinkedIn</span>
+              <div class="lead-badges">
+                <span class="lead-platform" id="modalPlatform">LinkedIn</span>
+                <span class="lead-urgency" id="modalUrgency">⚡ Medio</span>
+              </div>
             </div>
-            <div class="lead-score" id="modalScore">8</div>
+            <div class="lead-score-big">
+              <span class="score-number" id="modalScore">8</span>
+              <span class="score-label">/10</span>
+            </div>
+          </div>
+
+          <!-- Urgency Timer -->
+          <div class="urgency-timer" id="urgencyTimer">
+            <span class="timer-icon">⏰</span>
+            <span class="timer-text" id="timerText">Responder en: 12h</span>
+            <span class="timer-age" id="timerAge">Hace 2h</span>
+          </div>
+
+          <!-- Previous Contact Warning -->
+          <div class="previous-contact-warning" id="previousContactWarning" style="display:none;">
+            ⚠️ Ya contactaste a esta persona antes
           </div>
 
           <div class="lead-section">
@@ -195,25 +300,101 @@ Answering Service"></textarea>
           <div class="lead-section">
             <h4>Analisis IA</h4>
             <p id="modalAnalysis"></p>
+            <div class="analysis-details">
+              <span class="detail-badge" id="modalIndustry">Industria: -</span>
+              <span class="detail-badge" id="modalIntent">Intent: -</span>
+              <span class="detail-badge" id="modalApproach">Approach: -</span>
+            </div>
+          </div>
+
+          <!-- Pain Points -->
+          <div class="lead-section" id="painPointsSection" style="display:none;">
+            <h4>Puntos de Dolor Detectados</h4>
+            <ul id="modalPainPoints" class="pain-points-list"></ul>
           </div>
 
           <div class="lead-section">
             <h4>Mensaje Sugerido</h4>
-            <textarea id="modalDraft" rows="4"></textarea>
-            <button id="copyDraft" class="btn btn-secondary btn-small">Copiar</button>
+            <textarea id="modalDraft" rows="5"></textarea>
+            <div class="draft-actions">
+              <button id="copyDraft" class="btn btn-secondary btn-small">📋 Copiar</button>
+              <button id="quickReply" class="btn btn-primary btn-small">💬 Respuesta Rapida</button>
+            </div>
+          </div>
+
+          <!-- Lead Contact Info -->
+          <div class="lead-section contact-info" id="contactInfoSection">
+            <h4>Informacion de Contacto</h4>
+            <div class="contact-fields">
+              <div class="contact-field">
+                <label>Email:</label>
+                <span id="modalEmail">-</span>
+                <button id="findEmail" class="btn btn-tiny">🔍 Buscar</button>
+              </div>
+              <div class="contact-field">
+                <label>Empresa:</label>
+                <input type="text" id="modalCompany" placeholder="Agregar empresa...">
+              </div>
+              <div class="contact-field">
+                <label>Website:</label>
+                <input type="text" id="modalWebsite" placeholder="https://...">
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="lead-section">
+            <h4>Notas</h4>
+            <textarea id="modalNotes" rows="2" placeholder="Agregar notas sobre este lead..."></textarea>
           </div>
 
           <div class="lead-actions">
             <button id="sendToHubspot" class="btn btn-primary">
-              <span class="btn-icon">📊</span> Enviar a HubSpot
+              <span class="btn-icon">📊</span> HubSpot
             </button>
-            <button id="openProfile" class="btn btn-secondary">
+            <button id="sendToWebhook" class="btn btn-secondary">
+              <span class="btn-icon">🔗</span> Webhook
+            </button>
+            <button id="sendToSheets" class="btn btn-secondary">
+              <span class="btn-icon">📗</span> Sheets
+            </button>
+            <button id="captureScreenshot" class="btn btn-outline">
+              <span class="btn-icon">📸</span> Screenshot
+            </button>
+          </div>
+
+          <div class="lead-actions secondary">
+            <button id="openProfile" class="btn btn-outline">
               <span class="btn-icon">🔗</span> Ver Perfil
             </button>
             <button id="markContacted" class="btn btn-outline">
               <span class="btn-icon">✅</span> Marcar Contactado
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Google Sheets Instructions Modal -->
+    <div id="sheetsModal" class="modal">
+      <div class="modal-content modal-large">
+        <button class="modal-close" id="closeSheetsModal">&times;</button>
+        <h2>Configurar Google Sheets</h2>
+        <div class="instructions">
+          <ol>
+            <li>Crea una nueva Google Sheet</li>
+            <li>Ve a <strong>Extensiones > Apps Script</strong></li>
+            <li>Pega este codigo:</li>
+          </ol>
+          <pre id="appsScriptCode" class="code-block"></pre>
+          <button id="copyAppsScript" class="btn btn-secondary">📋 Copiar Codigo</button>
+          <ol start="4">
+            <li>Click en <strong>Implementar > Nueva implementacion</strong></li>
+            <li>Selecciona <strong>"Aplicacion web"</strong></li>
+            <li>En "Quien tiene acceso" selecciona <strong>"Cualquier persona"</strong></li>
+            <li>Click en Implementar y copia la URL</li>
+            <li>Pega la URL en la configuracion de Lead Hunter</li>
+          </ol>
         </div>
       </div>
     </div>

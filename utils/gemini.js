@@ -77,6 +77,7 @@ CRITERIOS DE EVALUACIÓN:
 2. ¿Parece ser dueño o gerente de un negocio?
 3. ¿Menciona competidores (${competitors})? Esto indica que busca solución activamente.
 4. ¿La industria coincide con nuestro target?
+5. ¿Qué tan frustrado o urgente suena el mensaje?
 
 RESPONDE EN JSON con este formato exacto:
 {
@@ -86,7 +87,10 @@ RESPONDE EN JSON con este formato exacto:
   "painPoints": [<lista de dolores específicos detectados>],
   "industry": "<industria detectada o 'unknown'>",
   "reasoning": "<explicación breve de por qué este score en español>",
-  "urgency": "<low|medium|high basado en qué tan urgente parece su necesidad>"
+  "urgency": "<critical|high|medium|low>",
+  "frustrationLevel": <1-10 qué tan frustrado suena>,
+  "buyingIntent": "<none|researching|comparing|ready_to_buy>",
+  "suggestedApproach": "<cold|warm|hot - cómo debería ser el approach>"
 }
 
 SCORING GUIDE:
@@ -95,6 +99,12 @@ SCORING GUIDE:
 - 5-6: Indica problemas de comunicación pero contexto incompleto
 - 3-4: Menciona temas relacionados pero sin dolor claro
 - 1-2: No es lead relevante
+
+URGENCY GUIDE:
+- critical: Palabras como "urgente", "desesperado", "ayuda", "ahora mismo", múltiples signos de exclamación
+- high: "hoy", "esta semana", "frustrado", "harto", "cansado de"
+- medium: "necesito", "buscando", "problema"
+- low: Menciones casuales sin urgencia aparente
 
 Sé conservador. Solo scores altos para leads genuinos.`;
 }
@@ -110,7 +120,12 @@ function normalizeAnalysis(analysis) {
     painPoints: Array.isArray(analysis.painPoints) ? analysis.painPoints : [],
     industry: analysis.industry || 'unknown',
     reasoning: analysis.reasoning || 'No analysis available',
-    urgency: ['low', 'medium', 'high'].includes(analysis.urgency) ? analysis.urgency : 'medium'
+    urgency: ['critical', 'high', 'medium', 'low'].includes(analysis.urgency) ? analysis.urgency : 'medium',
+    frustrationLevel: Math.max(1, Math.min(10, parseInt(analysis.frustrationLevel) || 5)),
+    buyingIntent: ['none', 'researching', 'comparing', 'ready_to_buy'].includes(analysis.buyingIntent)
+      ? analysis.buyingIntent : 'none',
+    suggestedApproach: ['cold', 'warm', 'hot'].includes(analysis.suggestedApproach)
+      ? analysis.suggestedApproach : 'warm'
   };
 }
 

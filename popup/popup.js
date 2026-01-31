@@ -1,10 +1,13 @@
 // Lead Hunter AI - Popup Controller
 
+import { generateAppsScriptCode } from '../utils/google-sheets.js';
+
 class PopupController {
   constructor() {
     this.currentTab = 'dashboard';
     this.leads = [];
     this.settings = {};
+    this.currentLead = null;
     this.init();
   }
 
@@ -14,26 +17,33 @@ class PopupController {
     this.renderDashboard();
     this.renderLeadsList();
     this.loadSettings();
+    this.loadAppsScriptCode();
   }
 
   async loadData() {
     const storage = await chrome.storage.local.get(['leads', 'settings', 'stats']);
     this.leads = storage.leads || [];
     this.settings = storage.settings || this.getDefaultSettings();
-    this.stats = storage.stats || { scanned: 0 };
+    this.stats = storage.stats || { scanned: 0, leadsFound: 0, hotLeads: 0 };
   }
 
   getDefaultSettings() {
     return {
       geminiKey: '',
       hubspotKey: '',
+      hunterKey: '',
+      webhookUrl: '',
+      googleSheetsUrl: '',
       minWords: 8,
       customKeywords: '',
       competitors: 'Ruby\nSmith.ai\nAnswering Service',
       industries: ['plumbing', 'hvac', 'dental', 'contractors', 'medical', 'legal', 'realestate', 'automotive'],
       notifyHotLeads: true,
       soundEnabled: false,
-      scanning: true
+      scanning: true,
+      autoSendWebhook: false,
+      autoSendSheets: false,
+      autoFindEmail: false
     };
   }
 
@@ -50,21 +60,42 @@ class PopupController {
     // Filters
     document.getElementById('platformFilter').addEventListener('change', () => this.filterLeads());
     document.getElementById('scoreFilter').addEventListener('change', () => this.filterLeads());
+    document.getElementById('urgencyFilter').addEventListener('change', () => this.filterLeads());
 
     // Settings
     document.getElementById('saveSettings').addEventListener('click', () => this.saveSettings());
+    document.getElementById('testWebhook').addEventListener('click', () => this.testWebhook());
+    document.getElementById('showSheetsInstructions').addEventListener('click', (e) => {
+      e.preventDefault();
+      this.showSheetsModal();
+    });
 
-    // Modal
-    document.querySelector('.modal-close').addEventListener('click', () => this.closeModal());
+    // Modal close buttons
+    document.querySelectorAll('.modal-close').forEach(btn => {
+      btn.addEventListener('click', () => this.closeAllModals());
+    });
+
     document.getElementById('leadModal').addEventListener('click', (e) => {
       if (e.target.id === 'leadModal') this.closeModal();
     });
 
+    document.getElementById('sheetsModal').addEventListener('click', (e) => {
+      if (e.target.id === 'sheetsModal') this.closeSheetsModal();
+    });
+
     // Modal actions
     document.getElementById('copyDraft').addEventListener('click', () => this.copyDraft());
+    document.getElementById('quickReply').addEventListener('click', () => this.quickReply());
     document.getElementById('sendToHubspot').addEventListener('click', () => this.sendToHubspot());
+    document.getElementById('sendToWebhook').addEventListener('click', () => this.sendToWebhook());
+    document.getElementById('sendToSheets').addEventListener('click', () => this.sendToSheets());
+    document.getElementById('captureScreenshot').addEventListener('click', () => this.captureScreenshot());
     document.getElementById('openProfile').addEventListener('click', () => this.openProfile());
     document.getElementById('markContacted').addEventListener('click', () => this.markContacted());
+    document.getElementById('findEmail').addEventListener('click', () => this.findEmail());
+
+    // Apps Script copy
+    document.getElementById('copyAppsScript').addEventListener('click', () => this.copyAppsScript());
 
     // Listen for updates from background
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -98,6 +129,20 @@ class PopupController {
     document.getElementById('hotLeads').textContent = hotLeads;
     document.getElementById('scannedComments').textContent = this.stats.scanned || 0;
 
+    // Urgency counts
+    const urgencyCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+    this.leads.forEach(lead => {
+      const level = lead.urgencyLevel || 'medium';
+      if (urgencyCounts.hasOwnProperty(level)) {
+        urgencyCounts[level]++;
+      }
+    });
+
+    document.getElementById('urgencyCritical').textContent = urgencyCounts.critical;
+    document.getElementById('urgencyHigh').textContent = urgencyCounts.high;
+    document.getElementById('urgencyMedium').textContent = urgencyCounts.medium;
+    document.getElementById('urgencyLow').textContent = urgencyCounts.low;
+
     // Recent leads
     const recentList = document.getElementById('recentLeadsList');
     const recent = this.leads.slice(0, 5);
@@ -126,20 +171,35 @@ class PopupController {
   renderLeadCard(lead) {
     const scoreClass = lead.score >= 8 ? 'hot' : lead.score >= 5 ? 'warm' : 'cold';
     const timeAgo = this.getTimeAgo(lead.timestamp);
+    const urgencyEmoji = this.getUrgencyEmoji(lead.urgencyLevel);
 
     return `
       <div class="lead-card ${scoreClass}" data-lead-id="${lead.id}">
         <div class="lead-card-header">
           <span class="lead-card-name">${this.escapeHtml(lead.name || 'Usuario')}</span>
-          <span class="lead-card-score">${lead.score}/10</span>
+          <div>
+            <span class="lead-card-urgency">${urgencyEmoji}</span>
+            <span class="lead-card-score">${lead.score}/10</span>
+          </div>
         </div>
-        <p class="lead-card-preview">${this.escapeHtml(lead.comment.substring(0, 80))}...</p>
+        <p class="lead-card-preview">${this.escapeHtml((lead.comment || '').substring(0, 80))}...</p>
         <div class="lead-card-meta">
           <span>${lead.platform}</span>
           <span>${timeAgo}</span>
         </div>
       </div>
     `;
+  }
+
+  getUrgencyEmoji(level) {
+    const emojis = {
+      critical: '🔥🔥',
+      high: '🔥',
+      medium: '⚡',
+      low: '💤',
+      cold: '❄️'
+    };
+    return emojis[level] || '⚡';
   }
 
   attachLeadCardListeners() {
@@ -155,6 +215,7 @@ class PopupController {
   filterLeads() {
     const platform = document.getElementById('platformFilter').value;
     const score = document.getElementById('scoreFilter').value;
+    const urgency = document.getElementById('urgencyFilter').value;
 
     let filtered = [...this.leads];
 
@@ -170,6 +231,10 @@ class PopupController {
       filtered = filtered.filter(l => l.score < 5);
     }
 
+    if (urgency !== 'all') {
+      filtered = filtered.filter(l => l.urgencyLevel === urgency);
+    }
+
     const list = document.getElementById('allLeadsList');
     if (filtered.length === 0) {
       list.innerHTML = '<p class="empty-state">No hay leads con estos filtros.</p>';
@@ -183,6 +248,7 @@ class PopupController {
   openLeadModal(lead) {
     this.currentLead = lead;
 
+    // Basic info
     document.getElementById('modalName').textContent = lead.name || 'Usuario';
     document.getElementById('modalTitle').textContent = lead.title || lead.bio || '';
     document.getElementById('modalPlatform').textContent = lead.platform;
@@ -191,12 +257,142 @@ class PopupController {
     document.getElementById('modalAnalysis').textContent = lead.analysis || 'Analisis no disponible';
     document.getElementById('modalDraft').value = lead.messageDraft || '';
 
+    // Urgency
+    const urgencyEl = document.getElementById('modalUrgency');
+    urgencyEl.textContent = `${this.getUrgencyEmoji(lead.urgencyLevel)} ${this.capitalizeFirst(lead.urgencyLevel || 'medium')}`;
+    urgencyEl.className = `lead-urgency ${lead.urgencyLevel || 'medium'}`;
+
+    // Timer
+    this.updateUrgencyTimer(lead);
+
+    // Previous contact warning
+    const warningEl = document.getElementById('previousContactWarning');
+    warningEl.style.display = lead.previouslyContacted ? 'block' : 'none';
+
+    // Analysis details
+    document.getElementById('modalIndustry').textContent = `Industria: ${lead.industry || '-'}`;
+    document.getElementById('modalIntent').textContent = `Intent: ${lead.buyingIntent || '-'}`;
+    document.getElementById('modalApproach').textContent = `Approach: ${lead.suggestedApproach || '-'}`;
+
+    // Pain points
+    const painPointsSection = document.getElementById('painPointsSection');
+    const painPointsList = document.getElementById('modalPainPoints');
+    if (lead.painPoints && lead.painPoints.length > 0) {
+      painPointsSection.style.display = 'block';
+      painPointsList.innerHTML = lead.painPoints.map(p => `<li>${this.escapeHtml(p)}</li>`).join('');
+    } else {
+      painPointsSection.style.display = 'none';
+    }
+
+    // Contact info
+    document.getElementById('modalEmail').textContent = lead.email || '-';
+    document.getElementById('modalCompany').value = lead.company || '';
+    document.getElementById('modalWebsite').value = lead.website || '';
+    document.getElementById('modalNotes').value = lead.notes || '';
+
+    // Update contacted button state
+    const contactedBtn = document.getElementById('markContacted');
+    if (lead.contacted) {
+      contactedBtn.innerHTML = '<span class="btn-icon">✅</span> Contactado';
+      contactedBtn.disabled = true;
+    } else {
+      contactedBtn.innerHTML = '<span class="btn-icon">✅</span> Marcar Contactado';
+      contactedBtn.disabled = false;
+    }
+
     document.getElementById('leadModal').classList.add('active');
   }
 
+  updateUrgencyTimer(lead) {
+    const timerEl = document.getElementById('urgencyTimer');
+    const timerTextEl = document.getElementById('timerText');
+    const timerAgeEl = document.getElementById('timerAge');
+
+    const age = Date.now() - new Date(lead.timestamp).getTime();
+    const ageFormatted = this.formatAge(age);
+
+    timerAgeEl.textContent = `Hace ${ageFormatted}`;
+
+    // Calculate response deadline based on urgency
+    const deadlines = {
+      critical: 2 * 60 * 60 * 1000,  // 2 hours
+      high: 12 * 60 * 60 * 1000,     // 12 hours
+      medium: 24 * 60 * 60 * 1000,   // 24 hours
+      low: 72 * 60 * 60 * 1000       // 72 hours
+    };
+
+    const deadline = deadlines[lead.urgencyLevel] || deadlines.medium;
+    const remaining = deadline - age;
+
+    if (remaining <= 0) {
+      timerTextEl.textContent = 'Tiempo vencido!';
+      timerEl.classList.add('expired');
+    } else {
+      timerTextEl.textContent = `Responder en: ${this.formatAge(remaining)}`;
+      timerEl.classList.remove('expired');
+      if (lead.urgencyLevel === 'critical') {
+        timerEl.classList.add('critical');
+      } else {
+        timerEl.classList.remove('critical');
+      }
+    }
+  }
+
+  formatAge(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (days > 0) return `${days}d ${hours % 24}h`;
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m`;
+    return 'Ahora';
+  }
+
   closeModal() {
+    // Save any edits to the lead
+    if (this.currentLead) {
+      this.currentLead.company = document.getElementById('modalCompany').value;
+      this.currentLead.website = document.getElementById('modalWebsite').value;
+      this.currentLead.notes = document.getElementById('modalNotes').value;
+      this.currentLead.messageDraft = document.getElementById('modalDraft').value;
+      this.saveLeads();
+    }
+
     document.getElementById('leadModal').classList.remove('active');
     this.currentLead = null;
+  }
+
+  closeAllModals() {
+    document.querySelectorAll('.modal').forEach(modal => modal.classList.remove('active'));
+    this.currentLead = null;
+  }
+
+  showSheetsModal() {
+    document.getElementById('sheetsModal').classList.add('active');
+  }
+
+  closeSheetsModal() {
+    document.getElementById('sheetsModal').classList.remove('active');
+  }
+
+  loadAppsScriptCode() {
+    try {
+      const code = generateAppsScriptCode();
+      document.getElementById('appsScriptCode').textContent = code;
+    } catch (e) {
+      document.getElementById('appsScriptCode').textContent = '// Error loading code';
+    }
+  }
+
+  async copyAppsScript() {
+    const code = document.getElementById('appsScriptCode').textContent;
+    await navigator.clipboard.writeText(code);
+
+    const btn = document.getElementById('copyAppsScript');
+    btn.textContent = 'Copiado!';
+    setTimeout(() => btn.textContent = '📋 Copiar Codigo', 2000);
   }
 
   async copyDraft() {
@@ -204,9 +400,15 @@ class PopupController {
     await navigator.clipboard.writeText(draft);
 
     const btn = document.getElementById('copyDraft');
-    const originalText = btn.textContent;
-    btn.textContent = 'Copiado!';
-    setTimeout(() => btn.textContent = originalText, 2000);
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '✅ Copiado!';
+    setTimeout(() => btn.innerHTML = originalText, 2000);
+  }
+
+  async quickReply() {
+    // Copy draft and open profile
+    await this.copyDraft();
+    this.openProfile();
   }
 
   async sendToHubspot() {
@@ -214,7 +416,7 @@ class PopupController {
 
     const btn = document.getElementById('sendToHubspot');
     btn.disabled = true;
-    btn.innerHTML = '<span class="btn-icon">⏳</span> Enviando...';
+    btn.innerHTML = '<span class="btn-icon">⏳</span>';
 
     try {
       const response = await chrome.runtime.sendMessage({
@@ -223,20 +425,182 @@ class PopupController {
       });
 
       if (response.success) {
-        btn.innerHTML = '<span class="btn-icon">✅</span> Enviado!';
+        btn.innerHTML = '<span class="btn-icon">✅</span>';
         this.currentLead.sentToHubspot = true;
         await this.saveLeads();
       } else {
         throw new Error(response.error);
       }
     } catch (error) {
-      btn.innerHTML = '<span class="btn-icon">❌</span> Error';
+      btn.innerHTML = '<span class="btn-icon">❌</span>';
       console.error('HubSpot error:', error);
     }
 
     setTimeout(() => {
       btn.disabled = false;
-      btn.innerHTML = '<span class="btn-icon">📊</span> Enviar a HubSpot';
+      btn.innerHTML = '<span class="btn-icon">📊</span> HubSpot';
+    }, 2000);
+  }
+
+  async sendToWebhook() {
+    if (!this.currentLead) return;
+
+    const btn = document.getElementById('sendToWebhook');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-icon">⏳</span>';
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SEND_TO_WEBHOOK',
+        lead: this.currentLead
+      });
+
+      if (response.success) {
+        btn.innerHTML = '<span class="btn-icon">✅</span>';
+        this.currentLead.sentToWebhook = true;
+        await this.saveLeads();
+      } else {
+        throw new Error(response.error);
+      }
+    } catch (error) {
+      btn.innerHTML = '<span class="btn-icon">❌</span>';
+      console.error('Webhook error:', error);
+    }
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">🔗</span> Webhook';
+    }, 2000);
+  }
+
+  async sendToSheets() {
+    if (!this.currentLead) return;
+
+    const btn = document.getElementById('sendToSheets');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-icon">⏳</span>';
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SEND_TO_SHEETS',
+        lead: this.currentLead
+      });
+
+      if (response.success) {
+        btn.innerHTML = '<span class="btn-icon">✅</span>';
+        this.currentLead.sentToSheets = true;
+        await this.saveLeads();
+      } else {
+        throw new Error(response.error);
+      }
+    } catch (error) {
+      btn.innerHTML = '<span class="btn-icon">❌</span>';
+      console.error('Sheets error:', error);
+    }
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">📗</span> Sheets';
+    }, 2000);
+  }
+
+  async captureScreenshot() {
+    const btn = document.getElementById('captureScreenshot');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-icon">⏳</span>';
+
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'CAPTURE_TAB' });
+
+      if (response.success) {
+        // Download the screenshot
+        const a = document.createElement('a');
+        a.href = response.dataUrl;
+        a.download = `lead-${this.currentLead?.name || 'screenshot'}-${Date.now()}.png`;
+        a.click();
+
+        btn.innerHTML = '<span class="btn-icon">✅</span>';
+      } else {
+        throw new Error(response.error);
+      }
+    } catch (error) {
+      btn.innerHTML = '<span class="btn-icon">❌</span>';
+      console.error('Screenshot error:', error);
+    }
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-icon">📸</span> Screenshot';
+    }, 2000);
+  }
+
+  async findEmail() {
+    if (!this.currentLead) return;
+
+    const btn = document.getElementById('findEmail');
+    btn.disabled = true;
+    btn.innerHTML = '⏳';
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'FIND_EMAIL',
+        lead: this.currentLead
+      });
+
+      if (response.success && response.email) {
+        document.getElementById('modalEmail').textContent = response.email;
+        this.currentLead.email = response.email;
+        await this.saveLeads();
+        btn.innerHTML = '✅';
+      } else {
+        throw new Error(response.error || 'No encontrado');
+      }
+    } catch (error) {
+      btn.innerHTML = '❌';
+      console.error('Email finder error:', error);
+    }
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '🔍 Buscar';
+    }, 2000);
+  }
+
+  async testWebhook() {
+    const url = document.getElementById('webhookUrl').value;
+    if (!url) {
+      alert('Ingresa una URL de webhook primero');
+      return;
+    }
+
+    const btn = document.getElementById('testWebhook');
+    btn.disabled = true;
+    btn.textContent = 'Probando...';
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'TEST_WEBHOOK',
+        url
+      });
+
+      if (response.success) {
+        btn.textContent = 'Exitoso!';
+        btn.style.background = '#10b981';
+        btn.style.color = 'white';
+      } else {
+        throw new Error('Failed');
+      }
+    } catch (error) {
+      btn.textContent = 'Error';
+      btn.style.background = '#ef4444';
+      btn.style.color = 'white';
+    }
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Probar Webhook';
+      btn.style.background = '';
+      btn.style.color = '';
     }, 3000);
   }
 
@@ -252,6 +616,16 @@ class PopupController {
     this.currentLead.contacted = true;
     this.currentLead.contactedAt = new Date().toISOString();
     await this.saveLeads();
+
+    // Mark in interaction history
+    chrome.runtime.sendMessage({
+      type: 'MARK_CONTACTED',
+      profileUrl: this.currentLead.profileUrl,
+      data: {
+        leadId: this.currentLead.id,
+        platform: this.currentLead.platform
+      }
+    });
 
     const btn = document.getElementById('markContacted');
     btn.innerHTML = '<span class="btn-icon">✅</span> Contactado';
@@ -284,11 +658,14 @@ class PopupController {
       return;
     }
 
-    const headers = ['Nombre', 'Plataforma', 'Score', 'Comentario', 'Perfil', 'Fecha', 'Contactado'];
+    const headers = ['Nombre', 'Plataforma', 'Score', 'Urgencia', 'Email', 'Empresa', 'Comentario', 'Perfil', 'Fecha', 'Contactado'];
     const rows = this.leads.map(l => [
       l.name || '',
       l.platform,
       l.score,
+      l.urgencyLevel || 'medium',
+      l.email || '',
+      l.company || '',
       `"${(l.comment || '').replace(/"/g, '""')}"`,
       l.profileUrl || '',
       new Date(l.timestamp).toLocaleString(),
@@ -310,11 +687,17 @@ class PopupController {
   loadSettings() {
     document.getElementById('geminiKey').value = this.settings.geminiKey || '';
     document.getElementById('hubspotKey').value = this.settings.hubspotKey || '';
+    document.getElementById('hunterKey').value = this.settings.hunterKey || '';
+    document.getElementById('webhookUrl').value = this.settings.webhookUrl || '';
+    document.getElementById('googleSheetsUrl').value = this.settings.googleSheetsUrl || '';
     document.getElementById('minWords').value = this.settings.minWords || 8;
     document.getElementById('customKeywords').value = this.settings.customKeywords || '';
     document.getElementById('competitors').value = this.settings.competitors || '';
     document.getElementById('notifyHotLeads').checked = this.settings.notifyHotLeads !== false;
     document.getElementById('soundEnabled').checked = this.settings.soundEnabled || false;
+    document.getElementById('autoSendWebhook').checked = this.settings.autoSendWebhook || false;
+    document.getElementById('autoSendSheets').checked = this.settings.autoSendSheets || false;
+    document.getElementById('autoFindEmail').checked = this.settings.autoFindEmail || false;
 
     // Industries
     const industries = this.settings.industries || [];
@@ -330,6 +713,24 @@ class PopupController {
       indicator.classList.add('paused');
       indicator.querySelector('.status-text').textContent = 'Pausado';
     }
+
+    // Check Hunter credits if key exists
+    if (this.settings.hunterKey) {
+      this.checkHunterCredits();
+    }
+  }
+
+  async checkHunterCredits() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'CHECK_HUNTER_CREDITS' });
+      if (response.success) {
+        document.getElementById('hunterCredits').style.display = 'block';
+        document.getElementById('hunterCreditsCount').textContent =
+          `${response.searches.available - response.searches.used}/${response.searches.available}`;
+      }
+    } catch (e) {
+      // Ignore
+    }
   }
 
   async saveSettings() {
@@ -342,12 +743,18 @@ class PopupController {
       ...this.settings,
       geminiKey: document.getElementById('geminiKey').value,
       hubspotKey: document.getElementById('hubspotKey').value,
+      hunterKey: document.getElementById('hunterKey').value,
+      webhookUrl: document.getElementById('webhookUrl').value,
+      googleSheetsUrl: document.getElementById('googleSheetsUrl').value,
       minWords: parseInt(document.getElementById('minWords').value) || 8,
       customKeywords: document.getElementById('customKeywords').value,
       competitors: document.getElementById('competitors').value,
       industries,
       notifyHotLeads: document.getElementById('notifyHotLeads').checked,
-      soundEnabled: document.getElementById('soundEnabled').checked
+      soundEnabled: document.getElementById('soundEnabled').checked,
+      autoSendWebhook: document.getElementById('autoSendWebhook').checked,
+      autoSendSheets: document.getElementById('autoSendSheets').checked,
+      autoFindEmail: document.getElementById('autoFindEmail').checked
     };
 
     await chrome.storage.local.set({ settings: this.settings });
@@ -377,6 +784,10 @@ class PopupController {
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
     return `${Math.floor(seconds / 86400)}d`;
+  }
+
+  capitalizeFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 
   escapeHtml(text) {
