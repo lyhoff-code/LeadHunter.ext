@@ -293,24 +293,74 @@ class PopupController {
 
   renderLeadCard(lead) {
     const isManual = lead.leadType === 'manual';
-    const scoreClass = isManual ? 'manual' : (lead.score >= 8 ? 'hot' : lead.score >= 5 ? 'warm' : 'cold');
+    const isProspect = lead.leadType === 'prospect';
+    const isPain = lead.leadType === 'pain' || (!isManual && !isProspect);
+
+    // Determine score class
+    let scoreClass = 'cold';
+    if (isManual) {
+      scoreClass = 'manual';
+    } else if (isProspect) {
+      scoreClass = 'prospect';
+    } else if (lead.score >= 8) {
+      scoreClass = 'hot';
+    } else if (lead.score >= 5) {
+      scoreClass = 'warm';
+    }
+
     const timeAgo = this.getTimeAgo(lead.timestamp);
-    const urgencyEmoji = isManual ? '📌' : this.getUrgencyEmoji(lead.urgencyLevel);
-    const urgencyTooltip = isManual ? t('tooltipScoreManual', this.currentLanguage) : this.getUrgencyTooltip(lead.urgencyLevel);
+
+    // Emoji and tooltip based on lead type
+    let urgencyEmoji, urgencyTooltip;
+    if (isManual) {
+      urgencyEmoji = '📌';
+      urgencyTooltip = t('tooltipScoreManual', this.currentLanguage);
+    } else if (isProspect) {
+      urgencyEmoji = '👤';
+      urgencyTooltip = t('tooltipProspect', this.currentLanguage) || 'Prospect - Business owner without explicit pain signals';
+    } else {
+      urgencyEmoji = this.getUrgencyEmoji(lead.urgencyLevel);
+      urgencyTooltip = this.getUrgencyTooltip(lead.urgencyLevel);
+    }
+
     const scoreTooltip = this.getScoreTooltip(lead.score, isManual);
 
-    // For manual leads, show title instead of comment
-    const preview = isManual
-      ? (lead.title || lead.company || t('manuallySaved', this.currentLanguage))
-      : (lead.comment || '').substring(0, 80) + '...';
+    // Preview text
+    let preview;
+    if (isManual) {
+      preview = lead.title || lead.company || t('manuallySaved', this.currentLanguage);
+    } else {
+      preview = (lead.comment || '').substring(0, 80) + '...';
+    }
 
-    const scoreDisplay = isManual ? '📌' : `${lead.score}/10`;
+    // Score display
+    let scoreDisplay;
+    if (isManual) {
+      scoreDisplay = '📌';
+    } else if (isProspect) {
+      scoreDisplay = '👤';
+    } else {
+      scoreDisplay = `${lead.score}/10`;
+    }
+
+    // Lead type badge
+    const typeBadge = isProspect
+      ? '<span class="lead-type-badge prospect">PROSPECT</span>'
+      : isPain && lead.score >= 7
+        ? '<span class="lead-type-badge pain">PAIN</span>'
+        : '';
+
+    // Industry badge if detected
+    const industryBadge = lead.detectedIndustry
+      ? `<span class="lead-industry-badge">${lead.detectedIndustry}</span>`
+      : '';
 
     return `
       <div class="lead-card ${scoreClass}" data-lead-id="${lead.id}">
         <div class="lead-card-header">
           <span class="lead-card-name">${this.escapeHtml(lead.name || 'User')}</span>
-          <div>
+          <div class="lead-card-badges">
+            ${typeBadge}
             <span class="lead-card-urgency" title="${urgencyTooltip}">${urgencyEmoji}</span>
             <span class="lead-card-score" title="${scoreTooltip}">${scoreDisplay}</span>
           </div>
@@ -318,6 +368,7 @@ class PopupController {
         <p class="lead-card-preview">${this.escapeHtml(preview)}</p>
         <div class="lead-card-meta">
           <span>${lead.platform}</span>
+          ${industryBadge}
           <span>${timeAgo}</span>
         </div>
       </div>
@@ -388,8 +439,10 @@ class PopupController {
 
     if (type === 'manual') {
       filtered = filtered.filter(l => l.leadType === 'manual');
-    } else if (type === 'auto') {
-      filtered = filtered.filter(l => l.leadType !== 'manual');
+    } else if (type === 'pain') {
+      filtered = filtered.filter(l => l.leadType === 'pain' || (!l.leadType && l.leadType !== 'prospect' && l.leadType !== 'manual'));
+    } else if (type === 'prospect') {
+      filtered = filtered.filter(l => l.leadType === 'prospect');
     }
 
     const list = document.getElementById('allLeadsList');

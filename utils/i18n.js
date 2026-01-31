@@ -36,6 +36,8 @@ export const translations = {
     cold: 'Cold (1-4)',
     allUrgency: 'All urgency',
     allTypes: 'All types',
+    painLeads: '🔥 Pain Leads',
+    prospectLeads: '👤 Prospects',
     autoDetected: 'Auto-detected',
     manuallySaved: 'Manually saved',
     noLeads: 'No leads detected.',
@@ -189,6 +191,7 @@ export const translations = {
     tooltipScoreWarm: 'WARM LEAD (5-7): Some interest, needs nurturing',
     tooltipScoreCold: 'COLD LEAD (1-4): Low intent, long-term prospect',
     tooltipScoreManual: 'MANUAL: Saved manually, no AI score',
+    tooltipScoreProspect: 'PROSPECT: Business owner in target industry, no explicit pain signal yet',
 
     // Tooltips - Dashboard
     tooltipLeadsToday: 'Leads captured in the last 24 hours',
@@ -232,6 +235,8 @@ export const translations = {
     cold: 'Fríos (1-4)',
     allUrgency: 'Toda urgencia',
     allTypes: 'Todos los tipos',
+    painLeads: '🔥 Leads con Dolor',
+    prospectLeads: '👤 Prospectos',
     autoDetected: 'Auto-detectado',
     manuallySaved: 'Guardado manual',
     noLeads: 'No hay leads detectados.',
@@ -385,6 +390,7 @@ export const translations = {
     tooltipScoreWarm: 'LEAD TIBIO (5-7): Algo de interés, necesita seguimiento',
     tooltipScoreCold: 'LEAD FRÍO (1-4): Baja intención, prospecto a largo plazo',
     tooltipScoreManual: 'MANUAL: Guardado manualmente, sin score de IA',
+    tooltipScoreProspect: 'PROSPECTO: Dueño de negocio en industria objetivo, sin señal de dolor explícita',
 
     // Tooltips - Dashboard
     tooltipLeadsToday: 'Leads capturados en las últimas 24 horas',

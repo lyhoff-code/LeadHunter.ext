@@ -148,10 +148,13 @@ async function analyzeComment(data) {
   stats.scanned++;
   await chrome.storage.local.set({ stats });
 
-  // Step 1: Keyword filter
-  if (!passesKeywordFilter(comment, settings)) {
+  // Step 1: Keyword filter (now returns object with leadType)
+  const filterResult = passesKeywordFilter(comment, settings);
+  if (!filterResult || !filterResult.pass) {
     return { skip: true, reason: 'keyword_filter' };
   }
+
+  const { leadType, reason: filterReason, priority: filterPriority, industry: detectedIndustry } = filterResult;
 
   // Step 2: Check for previous contact
   const previousContact = await checkPreviousContact(profileUrl, author?.name);
@@ -162,8 +165,15 @@ async function analyzeComment(data) {
   // Step 4: Check for Gemini API key
   if (!settings.geminiKey) {
     // Fallback: basic keyword scoring
-    const score = basicScoring(comment);
-    if (score < 5) {
+    let score = basicScoring(comment);
+
+    // Adjust score based on lead type
+    if (leadType === 'prospect') {
+      score = Math.min(score, 4); // Prospects get max 4 without AI analysis
+    }
+
+    // For prospects, we still save them but with lower score
+    if (leadType === 'pain' && score < 5) {
       return { skip: true, reason: 'low_score' };
     }
 
@@ -174,10 +184,16 @@ async function analyzeComment(data) {
       profileUrl,
       timestamp,
       score,
-      urgencyLevel: textUrgency,
-      analysis: 'Analisis basico (sin API key de Gemini)',
+      urgencyLevel: leadType === 'pain' ? textUrgency : 'low',
+      analysis: leadType === 'pain'
+        ? 'Analisis basico (sin API key de Gemini)'
+        : 'Prospecto detectado - sin señales de dolor explicitas',
       previouslyContacted: previousContact.contacted,
-      messageDraft: generateMessageDraft({ comment, author, platform, score }, settings)
+      messageDraft: generateMessageDraft({ comment, author, platform, score }, settings),
+      leadType: leadType,
+      filterReason: filterReason,
+      filterPriority: filterPriority,
+      detectedIndustry: detectedIndustry
     });
 
     await saveLead(lead);
@@ -189,9 +205,43 @@ async function analyzeComment(data) {
   try {
     const analysis = await analyzeWithGemini(comment, settings);
 
+    // For prospects without AI confirmation, still save but with lower score
     if (!analysis || analysis.score < 4) {
+      if (leadType === 'prospect') {
+        // Save prospect even if AI gives low score
+        const lead = createLead({
+          comment,
+          platform,
+          author,
+          profileUrl,
+          timestamp,
+          score: 3,
+          urgencyLevel: 'low',
+          frustrationLevel: 0,
+          buyingIntent: 'unknown',
+          suggestedApproach: 'cold',
+          analysis: 'Prospecto - dueño de negocio sin dolor explícito. Requiere enfoque diferente.',
+          painPoints: [],
+          industry: detectedIndustry || 'unknown',
+          isBusinessOwner: true,
+          mentionsCompetitor: false,
+          previouslyContacted: previousContact.contacted,
+          previousInteractions: previousContact.previousLeads || [],
+          messageDraft: '',
+          leadType: 'prospect',
+          filterReason: filterReason,
+          filterPriority: 'low',
+          detectedIndustry: detectedIndustry
+        });
+
+        await saveLead(lead);
+        return { success: true, lead };
+      }
       return { skip: true, reason: 'ai_rejected' };
     }
+
+    // Determine final lead type based on AI analysis
+    const finalLeadType = (analysis.painPoints && analysis.painPoints.length > 0) ? 'pain' : leadType;
 
     const lead = createLead({
       comment,
@@ -206,7 +256,7 @@ async function analyzeComment(data) {
       suggestedApproach: analysis.suggestedApproach,
       analysis: analysis.reasoning,
       painPoints: analysis.painPoints,
-      industry: analysis.industry,
+      industry: analysis.industry || detectedIndustry,
       isBusinessOwner: analysis.isBusinessOwner,
       mentionsCompetitor: analysis.mentionsCompetitor,
       previouslyContacted: previousContact.contacted,
@@ -217,7 +267,11 @@ async function analyzeComment(data) {
         platform,
         score: analysis.score,
         painPoints: analysis.painPoints
-      }, settings)
+      }, settings),
+      leadType: finalLeadType,
+      filterReason: filterReason,
+      filterPriority: filterPriority,
+      detectedIndustry: detectedIndustry
     });
 
     await saveLead(lead);
@@ -225,13 +279,13 @@ async function analyzeComment(data) {
     // Auto-send to integrations if enabled
     await autoSendIntegrations(lead);
 
-    // Notify if hot lead
-    if (analysis.score >= 8 && settings.notifyHotLeads) {
+    // Notify if hot lead (only for pain leads)
+    if (analysis.score >= 8 && settings.notifyHotLeads && finalLeadType === 'pain') {
       await sendNotification(lead);
     }
 
-    // Update hot lead stats
-    if (analysis.score >= 8) {
+    // Update hot lead stats (only for pain leads with high score)
+    if (analysis.score >= 8 && finalLeadType === 'pain') {
       stats.hotLeads++;
       await chrome.storage.local.set({ stats });
     }
@@ -423,7 +477,12 @@ function createLead(data) {
     previouslyContacted: data.previouslyContacted || false,
     previousInteractions: data.previousInteractions || [],
     screenshot: null,
-    notes: ''
+    notes: '',
+    // New fields for lead type differentiation
+    leadType: data.leadType || 'pain', // 'pain' or 'prospect'
+    filterReason: data.filterReason || null,
+    filterPriority: data.filterPriority || 'medium',
+    detectedIndustry: data.detectedIndustry || null
   };
 }
 

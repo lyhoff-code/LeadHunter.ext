@@ -86,7 +86,7 @@ const GARBAGE_INDICATORS = [
  * Check if a comment passes the keyword filter
  * @param {string} comment - The comment text to analyze
  * @param {object} settings - User settings
- * @returns {boolean} - True if comment should be analyzed by AI
+ * @returns {object|boolean} - Object with pass status and lead type, or false
  */
 export function passesKeywordFilter(comment, settings = {}) {
   if (!comment || typeof comment !== 'string') {
@@ -96,10 +96,10 @@ export function passesKeywordFilter(comment, settings = {}) {
   const trimmed = comment.trim();
   const lowerComment = trimmed.toLowerCase();
 
-  // Check minimum word count
+  // Check minimum word count (reduced for prospects)
   const minWords = settings.minWords || 8;
   const wordCount = trimmed.split(/\s+/).length;
-  if (wordCount < minWords) {
+  if (wordCount < Math.min(minWords, 5)) {
     return false;
   }
 
@@ -110,7 +110,7 @@ export function passesKeywordFilter(comment, settings = {}) {
     }
   }
 
-  // Check for pain keywords (at least one required)
+  // Check for pain keywords
   const allPainKeywords = [...DEFAULT_PAIN_KEYWORDS];
 
   // Add custom keywords from settings
@@ -125,6 +125,10 @@ export function passesKeywordFilter(comment, settings = {}) {
   const hasPainKeyword = allPainKeywords.some(keyword =>
     lowerComment.includes(keyword.toLowerCase())
   );
+
+  const painKeywordCount = allPainKeywords.filter(kw =>
+    lowerComment.includes(kw.toLowerCase())
+  ).length;
 
   // Check for owner indicators
   const hasOwnerIndicator = OWNER_INDICATORS.some(indicator =>
@@ -144,38 +148,57 @@ export function passesKeywordFilter(comment, settings = {}) {
     );
   }
 
-  // Check for industry keywords if industries are specified
-  let hasIndustryMatch = true; // Default to true if no industries specified
+  // Check for industry keywords
+  let hasIndustryMatch = false;
+  let matchedIndustry = null;
   if (settings.industries && settings.industries.length > 0) {
-    hasIndustryMatch = settings.industries.some(industry => {
+    for (const industry of settings.industries) {
       const keywords = INDUSTRY_KEYWORDS[industry] || [];
-      return keywords.some(kw => lowerComment.includes(kw.toLowerCase()));
-    });
+      if (keywords.some(kw => lowerComment.includes(kw.toLowerCase()))) {
+        hasIndustryMatch = true;
+        matchedIndustry = industry;
+        break;
+      }
+    }
   }
 
-  // Pass if:
-  // 1. Has pain keyword AND (owner indicator OR competitor mention), OR
-  // 2. Has competitor mention (they're actively looking), OR
-  // 3. Has multiple pain keywords (strong signal)
-  const painKeywordCount = allPainKeywords.filter(kw =>
-    lowerComment.includes(kw.toLowerCase())
-  ).length;
-
+  // PAIN LEAD: Has explicit pain signals
+  // Priority 1: Mentions competitor (actively looking!)
   if (mentionsCompetitor) {
-    return true;
+    return { pass: true, leadType: 'pain', reason: 'competitor_mention', priority: 'critical' };
   }
 
+  // Priority 2: Pain keyword + owner indicator
   if (hasPainKeyword && hasOwnerIndicator) {
-    return true;
+    return { pass: true, leadType: 'pain', reason: 'pain_and_owner', priority: 'high' };
   }
 
+  // Priority 3: Multiple pain keywords
   if (painKeywordCount >= 2) {
-    return true;
+    return { pass: true, leadType: 'pain', reason: 'multiple_pain_keywords', priority: 'high' };
   }
 
-  // If industry match required and has pain keyword
-  if (hasPainKeyword && hasIndustryMatch && wordCount >= 15) {
-    return true;
+  // Priority 4: Pain keyword + industry match + enough words
+  if (hasPainKeyword && hasIndustryMatch && wordCount >= 12) {
+    return { pass: true, leadType: 'pain', reason: 'pain_and_industry', priority: 'medium' };
+  }
+
+  // PROSPECT LEAD: Business owner without explicit pain
+  // They might need our service but haven't expressed pain yet
+
+  // Prospect 1: Owner indicator + industry match
+  if (hasOwnerIndicator && hasIndustryMatch && wordCount >= 8) {
+    return { pass: true, leadType: 'prospect', reason: 'owner_in_industry', priority: 'low', industry: matchedIndustry };
+  }
+
+  // Prospect 2: Industry match + substantial post (they're talking about business)
+  if (hasIndustryMatch && wordCount >= 20) {
+    return { pass: true, leadType: 'prospect', reason: 'industry_discussion', priority: 'low', industry: matchedIndustry };
+  }
+
+  // Prospect 3: Owner indicator + substantial post
+  if (hasOwnerIndicator && wordCount >= 15) {
+    return { pass: true, leadType: 'prospect', reason: 'business_owner', priority: 'low' };
   }
 
   return false;

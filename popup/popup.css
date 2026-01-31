@@ -380,6 +380,49 @@ body {
   background: linear-gradient(90deg, var(--hot-light) 0%, var(--white) 100%);
 }
 
+.lead-card.prospect {
+  border-left-color: #6366f1;
+  background: linear-gradient(90deg, #eef2ff 0%, var(--white) 100%);
+}
+
+/* Lead Type Badges */
+.lead-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lead-type-badge {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lead-type-badge.pain {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.lead-type-badge.prospect {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+}
+
+.lead-industry-badge {
+  font-size: 9px;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: var(--accent-light);
+  color: var(--accent-dark);
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
 .lead-card-header {
   display: flex;
   justify-content: space-between;
