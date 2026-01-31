@@ -49,6 +49,21 @@ class PopupController {
     if (languageSelect) {
       languageSelect.value = lang;
     }
+
+    // Apply tooltips
+    this.applyTooltips();
+  }
+
+  /**
+   * Apply tooltips to all elements with data-tooltip attribute
+   */
+  applyTooltips() {
+    const lang = this.currentLanguage;
+    document.querySelectorAll('[data-tooltip]').forEach(el => {
+      const key = el.getAttribute('data-tooltip');
+      const tooltip = t(key, lang);
+      el.setAttribute('title', tooltip);
+    });
   }
 
   /**
@@ -222,6 +237,8 @@ class PopupController {
     const scoreClass = isManual ? 'manual' : (lead.score >= 8 ? 'hot' : lead.score >= 5 ? 'warm' : 'cold');
     const timeAgo = this.getTimeAgo(lead.timestamp);
     const urgencyEmoji = isManual ? '📌' : this.getUrgencyEmoji(lead.urgencyLevel);
+    const urgencyTooltip = isManual ? t('tooltipScoreManual', this.currentLanguage) : this.getUrgencyTooltip(lead.urgencyLevel);
+    const scoreTooltip = this.getScoreTooltip(lead.score, isManual);
 
     // For manual leads, show title instead of comment
     const preview = isManual
@@ -235,8 +252,8 @@ class PopupController {
         <div class="lead-card-header">
           <span class="lead-card-name">${this.escapeHtml(lead.name || 'User')}</span>
           <div>
-            <span class="lead-card-urgency">${urgencyEmoji}</span>
-            <span class="lead-card-score">${scoreDisplay}</span>
+            <span class="lead-card-urgency" title="${urgencyTooltip}">${urgencyEmoji}</span>
+            <span class="lead-card-score" title="${scoreTooltip}">${scoreDisplay}</span>
           </div>
         </div>
         <p class="lead-card-preview">${this.escapeHtml(preview)}</p>
@@ -257,6 +274,23 @@ class PopupController {
       cold: '❄️'
     };
     return emojis[level] || '⚡';
+  }
+
+  getUrgencyTooltip(level) {
+    const tooltips = {
+      critical: t('tooltipCritical', this.currentLanguage),
+      high: t('tooltipHigh', this.currentLanguage),
+      medium: t('tooltipMedium', this.currentLanguage),
+      low: t('tooltipLow', this.currentLanguage)
+    };
+    return tooltips[level] || tooltips.medium;
+  }
+
+  getScoreTooltip(score, isManual) {
+    if (isManual) return t('tooltipScoreManual', this.currentLanguage);
+    if (score >= 8) return t('tooltipScoreHot', this.currentLanguage);
+    if (score >= 5) return t('tooltipScoreWarm', this.currentLanguage);
+    return t('tooltipScoreCold', this.currentLanguage);
   }
 
   attachLeadCardListeners() {

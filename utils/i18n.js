@@ -138,7 +138,25 @@ export const translations = {
     enterWebhookFirst: 'Enter a webhook URL first',
     testing: 'Testing...',
     success: 'Success!',
-    error: 'Error'
+    error: 'Error',
+
+    // Tooltips - Urgency
+    tooltipCritical: 'CRITICAL: Actively looking NOW. Respond within 2 hours!',
+    tooltipHigh: 'HIGH: Urgent need, respond within 12 hours',
+    tooltipMedium: 'MEDIUM: Interested but not urgent. 24h to respond',
+    tooltipLow: 'LOW: Passive interest. Can respond within 72h',
+
+    // Tooltips - Score
+    tooltipScoreHot: 'HOT LEAD (8-10): High buying intent, ideal prospect',
+    tooltipScoreWarm: 'WARM LEAD (5-7): Some interest, needs nurturing',
+    tooltipScoreCold: 'COLD LEAD (1-4): Low intent, long-term prospect',
+    tooltipScoreManual: 'MANUAL: Saved manually, no AI score',
+
+    // Tooltips - Dashboard
+    tooltipLeadsToday: 'Leads captured in the last 24 hours',
+    tooltipLeadsTotal: 'Total leads in your database',
+    tooltipHotLeads: 'Leads with score 8 or higher (high intent)',
+    tooltipScanned: 'Comments analyzed by the extension'
   },
 
   es: {
@@ -278,7 +296,25 @@ export const translations = {
     enterWebhookFirst: 'Ingresa una URL de webhook primero',
     testing: 'Probando...',
     success: '¡Exitoso!',
-    error: 'Error'
+    error: 'Error',
+
+    // Tooltips - Urgency
+    tooltipCritical: 'CRÍTICO: Buscando AHORA. ¡Responde en 2 horas!',
+    tooltipHigh: 'ALTO: Necesidad urgente, responde en 12 horas',
+    tooltipMedium: 'MEDIO: Interesado pero no urgente. 24h para responder',
+    tooltipLow: 'BAJO: Interés pasivo. Puedes responder en 72h',
+
+    // Tooltips - Score
+    tooltipScoreHot: 'LEAD CALIENTE (8-10): Alta intención de compra',
+    tooltipScoreWarm: 'LEAD TIBIO (5-7): Algo de interés, necesita seguimiento',
+    tooltipScoreCold: 'LEAD FRÍO (1-4): Baja intención, prospecto a largo plazo',
+    tooltipScoreManual: 'MANUAL: Guardado manualmente, sin score de IA',
+
+    // Tooltips - Dashboard
+    tooltipLeadsToday: 'Leads capturados en las últimas 24 horas',
+    tooltipLeadsTotal: 'Total de leads en tu base de datos',
+    tooltipHotLeads: 'Leads con score 8 o más (alta intención)',
+    tooltipScanned: 'Comentarios analizados por la extensión'
   }
 };
 

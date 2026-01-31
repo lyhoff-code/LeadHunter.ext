@@ -30,19 +30,19 @@
     <!-- Dashboard Tab -->
     <section id="dashboard" class="tab-content active">
       <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card" data-tooltip="tooltipLeadsToday">
           <span class="stat-number" id="leadsToday">0</span>
           <span class="stat-label" data-i18n="leadsToday">Leads Today</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-tooltip="tooltipLeadsTotal">
           <span class="stat-number" id="leadsTotal">0</span>
           <span class="stat-label" data-i18n="leadsTotal">Total</span>
         </div>
-        <div class="stat-card hot">
+        <div class="stat-card hot" data-tooltip="tooltipHotLeads">
           <span class="stat-number" id="hotLeads">0</span>
           <span class="stat-label" data-i18n="hotLeads">Hot (8+)</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" data-tooltip="tooltipScanned">
           <span class="stat-number" id="scannedComments">0</span>
           <span class="stat-label" data-i18n="scanned">Scanned</span>
         </div>
@@ -52,22 +52,22 @@
       <div class="urgency-summary">
         <h3 data-i18n="byUrgency">By Urgency</h3>
         <div class="urgency-bars">
-          <div class="urgency-bar critical">
+          <div class="urgency-bar critical" data-tooltip="tooltipCritical">
             <span class="urgency-emoji">🔥🔥</span>
             <span class="urgency-label" data-i18n="urgencyCritical">Critical</span>
             <span class="urgency-count" id="urgencyCritical">0</span>
           </div>
-          <div class="urgency-bar high">
+          <div class="urgency-bar high" data-tooltip="tooltipHigh">
             <span class="urgency-emoji">🔥</span>
             <span class="urgency-label" data-i18n="urgencyHigh">High</span>
             <span class="urgency-count" id="urgencyHigh">0</span>
           </div>
-          <div class="urgency-bar medium">
+          <div class="urgency-bar medium" data-tooltip="tooltipMedium">
             <span class="urgency-emoji">⚡</span>
             <span class="urgency-label" data-i18n="urgencyMedium">Medium</span>
             <span class="urgency-count" id="urgencyMedium">0</span>
           </div>
-          <div class="urgency-bar low">
+          <div class="urgency-bar low" data-tooltip="tooltipLow">
             <span class="urgency-emoji">💤</span>
             <span class="urgency-label" data-i18n="urgencyLow">Low</span>
             <span class="urgency-count" id="urgencyLow">0</span>

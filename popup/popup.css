@@ -855,3 +855,32 @@ body {
   border-radius: 6px;
   font-size: 13px;
 }
+
+/* Custom Tooltips */
+[data-tooltip],
+[title] {
+  cursor: help;
+}
+
+.stat-card[data-tooltip],
+.urgency-bar[data-tooltip] {
+  cursor: pointer;
+}
+
+.lead-card-urgency[title],
+.lead-card-score[title] {
+  cursor: help;
+  position: relative;
+}
+
+/* Improve native tooltip appearance with better spacing */
+.stat-card[data-tooltip]:hover,
+.urgency-bar[data-tooltip]:hover {
+  transform: translateY(-1px);
+  transition: transform 0.15s ease;
+}
+
+.lead-card-urgency:hover,
+.lead-card-score:hover {
+  opacity: 0.85;
+}
