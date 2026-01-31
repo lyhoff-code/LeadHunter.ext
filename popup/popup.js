@@ -95,7 +95,7 @@ class PopupController {
       minWords: 8,
       customKeywords: '',
       competitors: 'Ruby\nSmith.ai\nAnswering Service',
-      industries: ['plumbing', 'hvac', 'electrical', 'contractors'],
+      industries: [],
       notifyHotLeads: true,
       soundEnabled: false,
       scanning: true,
