@@ -1,21 +1,65 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+    <!-- Main gradient - Slate to Emerald -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="50%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
     </linearGradient>
+    <!-- Accent gradient - Emerald glow -->
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+    <!-- Glow effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Pulse animation -->
+    <radialGradient id="pulseGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:0.8"/>
+      <stop offset="70%" style="stop-color:#10b981;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#10b981;stop-opacity:0"/>
+    </radialGradient>
   </defs>
-  <!-- Background circle -->
-  <circle cx="64" cy="64" r="60" fill="url(#grad1)"/>
-  <!-- Target rings -->
-  <circle cx="64" cy="64" r="45" fill="none" stroke="white" stroke-width="3" opacity="0.3"/>
-  <circle cx="64" cy="64" r="30" fill="none" stroke="white" stroke-width="3" opacity="0.5"/>
-  <circle cx="64" cy="64" r="15" fill="none" stroke="white" stroke-width="3" opacity="0.7"/>
-  <!-- Center dot -->
-  <circle cx="64" cy="64" r="6" fill="white"/>
-  <!-- Crosshair -->
-  <line x1="64" y1="20" x2="64" y2="45" stroke="white" stroke-width="3" opacity="0.8"/>
-  <line x1="64" y1="83" x2="64" y2="108" stroke="white" stroke-width="3" opacity="0.8"/>
-  <line x1="20" y1="64" x2="45" y2="64" stroke="white" stroke-width="3" opacity="0.8"/>
-  <line x1="83" y1="64" x2="108" y2="64" stroke="white" stroke-width="3" opacity="0.8"/>
+
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="url(#bgGrad)"/>
+
+  <!-- Outer ring - hunting scope -->
+  <circle cx="64" cy="64" r="48" fill="none" stroke="url(#accentGrad)" stroke-width="3" opacity="0.6"/>
+
+  <!-- Crosshair lines -->
+  <line x1="64" y1="12" x2="64" y2="36" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" filter="url(#glow)"/>
+  <line x1="64" y1="92" x2="64" y2="116" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" filter="url(#glow)"/>
+  <line x1="12" y1="64" x2="36" y2="64" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" filter="url(#glow)"/>
+  <line x1="92" y1="64" x2="116" y2="64" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- Inner targeting rings -->
+  <circle cx="64" cy="64" r="32" fill="none" stroke="#10b981" stroke-width="1.5" opacity="0.4" stroke-dasharray="8 4"/>
+  <circle cx="64" cy="64" r="20" fill="none" stroke="#10b981" stroke-width="1.5" opacity="0.6"/>
+
+  <!-- Person silhouette (the "lead") -->
+  <g filter="url(#glow)">
+    <!-- Head -->
+    <circle cx="64" cy="52" r="10" fill="#34d399"/>
+    <!-- Body -->
+    <path d="M50 68 Q50 62 58 62 L70 62 Q78 62 78 68 L78 82 Q78 88 72 88 L56 88 Q50 88 50 82 Z" fill="#34d399"/>
+  </g>
+
+  <!-- Target lock corners -->
+  <path d="M28 44 L28 28 L44 28" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <path d="M100 44 L100 28 L84 28" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <path d="M28 84 L28 100 L44 100" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <path d="M100 84 L100 100 L84 100" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- Small indicator dots -->
+  <circle cx="64" cy="28" r="3" fill="#10b981" filter="url(#glow)"/>
+  <circle cx="64" cy="100" r="3" fill="#10b981" filter="url(#glow)"/>
+  <circle cx="28" cy="64" r="3" fill="#10b981" filter="url(#glow)"/>
+  <circle cx="100" cy="64" r="3" fill="#10b981" filter="url(#glow)"/>
 </svg>
