@@ -27,7 +27,8 @@
     "https://*.hvac-talk.com/*",
     "https://*.contractortalk.com/*",
     "https://*.youtube.com/*",
-    "https://*.tiktok.com/*"
+    "https://*.tiktok.com/*",
+    "https://*.instagram.com/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",
@@ -117,6 +118,16 @@
       "matches": ["https://*.tiktok.com/*"],
       "js": ["content/platforms/tiktok.js", "content/scanner.js"],
       "css": ["styles/highlight.css"]
+    },
+    {
+      "matches": [
+        "https://*.linkedin.com/*",
+        "https://*.facebook.com/*",
+        "https://*.twitter.com/*",
+        "https://*.x.com/*",
+        "https://*.instagram.com/*"
+      ],
+      "js": ["content/manual-save.js"]
     }
   ],
   "icons": {

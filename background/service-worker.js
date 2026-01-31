@@ -117,6 +117,9 @@ async function handleMessage(message, sender) {
     case 'CAPTURE_TAB':
       return await captureCurrentTab();
 
+    case 'SAVE_MANUAL_CONTACT':
+      return await saveManualContact(message.data);
+
     default:
       return { error: 'Unknown message type' };
   }
@@ -426,6 +429,87 @@ async function saveLead(lead) {
   chrome.runtime.sendMessage({ type: 'NEW_LEAD', lead }).catch(() => {
     // Popup not open - ignore
   });
+}
+
+// Save manual contact (from profile page)
+async function saveManualContact(data) {
+  try {
+    // Check for duplicates (same profile URL)
+    const storage = await chrome.storage.local.get(['leads']);
+    const leads = storage.leads || [];
+
+    const isDuplicate = leads.some(l =>
+      l.profileUrl === data.profileUrl
+    );
+
+    if (isDuplicate) {
+      return { success: false, error: 'Contact already saved' };
+    }
+
+    // Create manual lead object
+    const lead = {
+      id: generateId(),
+      name: data.name || 'Unknown',
+      title: data.title || '',
+      bio: data.bio || '',
+      profileUrl: data.profileUrl,
+      platform: data.platform,
+      comment: '', // No comment for manual saves
+      score: 0, // Manual save = no score
+      urgencyLevel: 'low',
+      frustrationLevel: 0,
+      buyingIntent: 'unknown',
+      suggestedApproach: 'cold',
+      analysis: 'Manually saved contact',
+      painPoints: [],
+      industry: data.industries?.[0] || 'unknown',
+      targetIndustries: data.industries || [],
+      isBusinessOwner: null,
+      mentionsCompetitor: false,
+      messageDraft: '',
+      timestamp: data.timestamp || new Date().toISOString(),
+      detectedAt: new Date().toISOString(),
+      contacted: false,
+      sentToHubspot: false,
+      sentToWebhook: false,
+      sentToSheets: false,
+      email: null,
+      emailConfidence: null,
+      company: data.company || null,
+      website: null,
+      phone: null,
+      location: data.location || null,
+      profilePic: data.profilePic || null,
+      previouslyContacted: false,
+      previousInteractions: [],
+      screenshot: null,
+      notes: '',
+      leadType: 'manual' // Mark as manually saved
+    };
+
+    // Update stats
+    stats.leadsFound++;
+
+    // Save to storage
+    leads.unshift(lead);
+
+    // Keep only last 500 leads
+    if (leads.length > 500) {
+      leads.splice(500);
+    }
+
+    await chrome.storage.local.set({ leads, stats });
+
+    // Broadcast to popup
+    chrome.runtime.sendMessage({ type: 'NEW_LEAD', lead }).catch(() => {
+      // Popup not open - ignore
+    });
+
+    return { success: true, lead };
+  } catch (error) {
+    console.error('Manual save error:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 // Send to HubSpot

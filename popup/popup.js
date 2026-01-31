@@ -104,6 +104,7 @@ class PopupController {
     document.getElementById('platformFilter').addEventListener('change', () => this.filterLeads());
     document.getElementById('scoreFilter').addEventListener('change', () => this.filterLeads());
     document.getElementById('urgencyFilter').addEventListener('change', () => this.filterLeads());
+    document.getElementById('typeFilter').addEventListener('change', () => this.filterLeads());
 
     // Settings
     document.getElementById('saveSettings').addEventListener('click', () => this.saveSettings());
@@ -217,20 +218,28 @@ class PopupController {
   }
 
   renderLeadCard(lead) {
-    const scoreClass = lead.score >= 8 ? 'hot' : lead.score >= 5 ? 'warm' : 'cold';
+    const isManual = lead.leadType === 'manual';
+    const scoreClass = isManual ? 'manual' : (lead.score >= 8 ? 'hot' : lead.score >= 5 ? 'warm' : 'cold');
     const timeAgo = this.getTimeAgo(lead.timestamp);
-    const urgencyEmoji = this.getUrgencyEmoji(lead.urgencyLevel);
+    const urgencyEmoji = isManual ? '📌' : this.getUrgencyEmoji(lead.urgencyLevel);
+
+    // For manual leads, show title instead of comment
+    const preview = isManual
+      ? (lead.title || lead.company || t('manuallySaved', this.currentLanguage))
+      : (lead.comment || '').substring(0, 80) + '...';
+
+    const scoreDisplay = isManual ? '📌' : `${lead.score}/10`;
 
     return `
       <div class="lead-card ${scoreClass}" data-lead-id="${lead.id}">
         <div class="lead-card-header">
-          <span class="lead-card-name">${this.escapeHtml(lead.name || 'Usuario')}</span>
+          <span class="lead-card-name">${this.escapeHtml(lead.name || 'User')}</span>
           <div>
             <span class="lead-card-urgency">${urgencyEmoji}</span>
-            <span class="lead-card-score">${lead.score}/10</span>
+            <span class="lead-card-score">${scoreDisplay}</span>
           </div>
         </div>
-        <p class="lead-card-preview">${this.escapeHtml((lead.comment || '').substring(0, 80))}...</p>
+        <p class="lead-card-preview">${this.escapeHtml(preview)}</p>
         <div class="lead-card-meta">
           <span>${lead.platform}</span>
           <span>${timeAgo}</span>
@@ -264,6 +273,7 @@ class PopupController {
     const platform = document.getElementById('platformFilter').value;
     const score = document.getElementById('scoreFilter').value;
     const urgency = document.getElementById('urgencyFilter').value;
+    const type = document.getElementById('typeFilter').value;
 
     let filtered = [...this.leads];
 
@@ -281,6 +291,12 @@ class PopupController {
 
     if (urgency !== 'all') {
       filtered = filtered.filter(l => l.urgencyLevel === urgency);
+    }
+
+    if (type === 'manual') {
+      filtered = filtered.filter(l => l.leadType === 'manual');
+    } else if (type === 'auto') {
+      filtered = filtered.filter(l => l.leadType !== 'manual');
     }
 
     const list = document.getElementById('allLeadsList');

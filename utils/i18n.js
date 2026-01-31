@@ -35,6 +35,9 @@ export const translations = {
     warm: 'Warm (5-7)',
     cold: 'Cold (1-4)',
     allUrgency: 'All urgency',
+    allTypes: 'All types',
+    autoDetected: 'Auto-detected',
+    manuallySaved: 'Manually saved',
     noLeads: 'No leads detected.',
     noLeadsFilter: 'No leads match these filters.',
 
@@ -172,6 +175,9 @@ export const translations = {
     warm: 'Tibios (5-7)',
     cold: 'Fríos (1-4)',
     allUrgency: 'Toda urgencia',
+    allTypes: 'Todos los tipos',
+    autoDetected: 'Auto-detectado',
+    manuallySaved: 'Guardado manual',
     noLeads: 'No hay leads detectados.',
     noLeadsFilter: 'No hay leads con estos filtros.',
 
