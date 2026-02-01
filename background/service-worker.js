@@ -359,28 +359,66 @@ async function updateLeadInStorage(lead) {
   }
 }
 
-// Enrich lead with email
+// Enrich lead with email using Hunter.io
 async function enrichLeadWithEmail(lead) {
-  if (!settings.hunterKey) return;
+  if (!settings.hunterKey) {
+    console.log('[Hunter.io] No API key configured');
+    return;
+  }
 
-  // Try to find email based on available info
-  // This is a simplified version - in reality, you'd need domain + name
+  // Skip if lead already has email
+  if (lead.email) {
+    console.log('[Hunter.io] Lead already has email:', lead.email);
+    return;
+  }
+
+  // We need a domain to search
+  if (!lead.company && !lead.website) {
+    console.log('[Hunter.io] No company or website for lead:', lead.name);
+    return;
+  }
+
+  // Extract domain from website or company name
+  let domain = null;
+
+  if (lead.website) {
+    try {
+      // Handle websites with or without protocol
+      let websiteUrl = lead.website;
+      if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+        websiteUrl = 'https://' + websiteUrl;
+      }
+      const url = new URL(websiteUrl);
+      domain = url.hostname.replace('www.', '');
+    } catch (e) {
+      // If URL parsing fails, try to extract domain directly
+      domain = lead.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+    }
+  }
+
+  // Fallback to guessing domain from company name
+  if (!domain && lead.company) {
+    domain = lead.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+  }
+
+  if (!domain) {
+    console.log('[Hunter.io] Could not determine domain for:', lead.name);
+    return;
+  }
+
+  console.log('[Hunter.io] Searching email for domain:', domain);
+
+  // Parse name into first/last
   const nameParts = (lead.name || '').split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
-  // We'd need a domain - for now, skip if we don't have company info
-  if (!lead.company && !lead.website) {
-    return;
-  }
-
-  const domain = lead.website
-    ? new URL(lead.website).hostname.replace('www.', '')
-    : `${lead.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
-
   try {
     const result = await findEmail(domain, firstName, lastName, settings.hunterKey);
+
     if (result.success && result.email) {
+      console.log('[Hunter.io] Found email:', result.email, 'confidence:', result.confidence);
+
       lead.email = result.email;
       lead.emailConfidence = result.confidence;
 
@@ -391,10 +429,15 @@ async function enrichLeadWithEmail(lead) {
       if (index !== -1) {
         leads[index] = lead;
         await chrome.storage.local.set({ leads });
+
+        // Broadcast update to popup
+        chrome.runtime.sendMessage({ type: 'LEAD_UPDATED', lead }).catch(() => {});
       }
+    } else {
+      console.log('[Hunter.io] No email found for:', domain, firstName, lastName);
     }
   } catch (error) {
-    console.error('Email enrichment error:', error);
+    console.error('[Hunter.io] Email enrichment error:', error.message);
   }
 }
 
@@ -1106,23 +1149,45 @@ async function handleSheetsSend(lead) {
   }
 }
 
-// Find email for lead
+// Find email for lead (manual search from popup)
 async function handleFindEmail(lead) {
   if (!settings.hunterKey) {
     return { success: false, error: 'No Hunter.io API key configured' };
+  }
+
+  if (!lead.company && !lead.website) {
+    return { success: false, error: 'Need company or website to find email' };
+  }
+
+  // Extract domain from website or company name
+  let domain = null;
+
+  if (lead.website) {
+    try {
+      let websiteUrl = lead.website;
+      if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+        websiteUrl = 'https://' + websiteUrl;
+      }
+      const url = new URL(websiteUrl);
+      domain = url.hostname.replace('www.', '');
+    } catch (e) {
+      domain = lead.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+    }
+  }
+
+  if (!domain && lead.company) {
+    domain = lead.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+  }
+
+  if (!domain) {
+    return { success: false, error: 'Could not determine domain' };
   }
 
   const nameParts = (lead.name || '').split(' ');
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
-  if (!lead.company && !lead.website) {
-    return { success: false, error: 'Need company or website to find email' };
-  }
-
-  const domain = lead.website
-    ? new URL(lead.website).hostname.replace('www.', '')
-    : `${lead.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+  console.log('[Hunter.io] Manual search for:', domain, firstName, lastName);
 
   try {
     const result = await findEmail(domain, firstName, lastName, settings.hunterKey);
