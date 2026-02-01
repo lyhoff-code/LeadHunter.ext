@@ -375,35 +375,142 @@
       reviewCount: ''
     };
 
-    // Business name
-    const nameEl = document.querySelector('h1[class*="header"]') ||
-                   document.querySelector('h1') ||
-                   document.querySelector('[data-header-feature-id="title"]');
-    if (nameEl) info.name = nameEl.textContent.trim();
-
-    // Phone
-    const phoneEl = document.querySelector('a[href^="tel:"]') ||
-                    document.querySelector('button[data-item-id*="phone"]');
-    if (phoneEl) {
-      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') :
-                   phoneEl.getAttribute('aria-label')?.match(/[\d-]+/)?.[0] || '';
+    // Business name - try multiple selectors
+    const nameSelectors = [
+      'h1.DUwDvf',
+      'h1[class*="header"]',
+      'h1.fontHeadlineLarge',
+      'div[role="main"] h1',
+      '[data-header-feature-id="title"]',
+      'h1'
+    ];
+    for (const sel of nameSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim()) {
+        info.name = el.textContent.trim();
+        break;
+      }
     }
 
-    // Website
-    const websiteEl = document.querySelector('a[data-item-id="authority"]') ||
-                      document.querySelector('a[aria-label*="website"]');
-    if (websiteEl) info.website = websiteEl.href;
+    // Phone - try multiple approaches
+    const phoneLink = document.querySelector('a[href^="tel:"]');
+    if (phoneLink) {
+      info.phone = phoneLink.href.replace('tel:', '').trim();
+    } else {
+      // Try button with phone data
+      const phoneButton = document.querySelector('button[data-item-id*="phone"]') ||
+                          document.querySelector('button[aria-label*="Phone"]') ||
+                          document.querySelector('button[aria-label*="phone"]') ||
+                          document.querySelector('[data-tooltip="Copy phone number"]');
+      if (phoneButton) {
+        const label = phoneButton.getAttribute('aria-label') || phoneButton.textContent;
+        const phoneMatch = label.match(/[\d\s()+-]+/);
+        if (phoneMatch) info.phone = phoneMatch[0].trim();
+      }
+    }
+
+    // If still no phone, search in page text
+    if (!info.phone) {
+      const pageText = document.body.innerText;
+      const phonePatterns = [
+        /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
+        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
+        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+      ];
+      for (const pattern of phonePatterns) {
+        const match = pageText.match(pattern);
+        if (match) {
+          info.phone = match[0];
+          break;
+        }
+      }
+    }
+
+    // Website - try multiple selectors
+    const websiteSelectors = [
+      'a[data-item-id="authority"]',
+      'a[aria-label*="Website"]',
+      'a[aria-label*="website"]',
+      'a[data-tooltip="Open website"]',
+      'a.CsEnBe[href^="http"]'
+    ];
+    for (const sel of websiteSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.href && !el.href.includes('google.com')) {
+        info.website = el.href;
+        break;
+      }
+    }
+
+    // Also check for website in text buttons
+    if (!info.website) {
+      const buttons = document.querySelectorAll('button[aria-label], a[aria-label]');
+      for (const btn of buttons) {
+        const label = btn.getAttribute('aria-label') || '';
+        if (label.toLowerCase().includes('website') || label.toLowerCase().includes('sitio web')) {
+          // The website might be in the button's text or a sibling
+          const text = btn.textContent.trim();
+          if (text.includes('.com') || text.includes('.net') || text.includes('.org')) {
+            info.website = text.startsWith('http') ? text : 'https://' + text;
+            break;
+          }
+        }
+      }
+    }
 
     // Address
-    const addressEl = document.querySelector('button[data-item-id="address"]') ||
-                      document.querySelector('[data-item-id*="address"]');
-    if (addressEl) info.address = addressEl.getAttribute('aria-label') || addressEl.textContent.trim();
+    const addressSelectors = [
+      'button[data-item-id="address"]',
+      'button[aria-label*="Address"]',
+      'button[aria-label*="address"]',
+      '[data-tooltip="Copy address"]'
+    ];
+    for (const sel of addressSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        info.address = el.getAttribute('aria-label')?.replace('Address:', '').trim() ||
+                       el.textContent.trim();
+        break;
+      }
+    }
 
     // Category
-    const categoryEl = document.querySelector('button[jsaction*="category"]') ||
-                       document.querySelector('[class*="category"]');
-    if (categoryEl) info.category = categoryEl.textContent.trim();
+    const categorySelectors = [
+      'button[jsaction*="category"]',
+      '.DkEaL',
+      'span.DkEaL',
+      '[class*="category"]'
+    ];
+    for (const sel of categorySelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim()) {
+        info.category = el.textContent.trim();
+        break;
+      }
+    }
 
+    // Rating and reviews
+    const ratingEl = document.querySelector('div.F7nice span[aria-hidden="true"]') ||
+                     document.querySelector('span.ceNzKf[role="img"]');
+    if (ratingEl) {
+      info.rating = ratingEl.textContent.trim() || ratingEl.getAttribute('aria-label');
+    }
+
+    const reviewEl = document.querySelector('span[aria-label*="reviews"]') ||
+                     document.querySelector('span.F7nice span:last-child');
+    if (reviewEl) {
+      const reviewMatch = reviewEl.textContent.match(/[\d,]+/);
+      if (reviewMatch) info.reviewCount = reviewMatch[0].replace(',', '');
+    }
+
+    // Email - check page text
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('google.com') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Google business:', info);
     return info;
   }
 
@@ -813,7 +920,10 @@
    */
   function extractGoogleListings() {
     const businesses = [];
-    const listings = document.querySelectorAll('div[role="article"], .Nv2PK');
+    // Multiple selectors for different Google Maps layouts
+    const listings = document.querySelectorAll('div[role="feed"] > div, div.Nv2PK, a.hfpxzc, div[jsaction*="mouseover:pane"]');
+
+    console.log('[Lead Hunter] Found', listings.length, 'potential listings');
 
     listings.forEach(listing => {
       const info = {
@@ -826,26 +936,82 @@
         url: ''
       };
 
-      const nameEl = listing.querySelector('.qBF1Pd, .fontHeadlineSmall');
-      if (nameEl) info.name = nameEl.textContent.trim();
+      // Name - multiple selectors
+      const nameEl = listing.querySelector('.qBF1Pd') ||
+                     listing.querySelector('.fontHeadlineSmall') ||
+                     listing.querySelector('div.NrDZNb') ||
+                     listing.querySelector('.OSrXXb') ||
+                     listing.getAttribute('aria-label');
 
-      const linkEl = listing.querySelector('a[href*="maps/place"]');
-      if (linkEl) info.url = linkEl.href;
-
-      const phoneEl = listing.querySelector('[data-tooltip*="phone"], button[aria-label*="Phone"]');
-      if (phoneEl) {
-        const phoneMatch = phoneEl.getAttribute('aria-label')?.match(/[\d()-]+/) ||
-                          phoneEl.textContent.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-        if (phoneMatch) info.phone = phoneMatch[0];
+      if (nameEl) {
+        info.name = typeof nameEl === 'string' ? nameEl : nameEl.textContent.trim();
       }
 
-      const addressEl = listing.querySelector('.W4Efsd:last-child span, [data-tooltip*="address"]');
-      if (addressEl) info.address = addressEl.textContent.trim();
+      // URL to business page
+      const linkEl = listing.querySelector('a[href*="maps/place"]') ||
+                     listing.querySelector('a.hfpxzc') ||
+                     (listing.tagName === 'A' ? listing : null);
+      if (linkEl) info.url = linkEl.href;
 
-      const categoryEl = listing.querySelector('.W4Efsd span[style*="color"]');
-      if (categoryEl) info.category = categoryEl.textContent.trim();
+      // Get all text content to search for info
+      const listingText = listing.innerText || '';
 
-      if (info.name) businesses.push(info);
+      // Phone - search in listing text
+      const phonePatterns = [
+        /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
+        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
+        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+      ];
+      for (const pattern of phonePatterns) {
+        const match = listingText.match(pattern);
+        if (match) {
+          info.phone = match[0];
+          break;
+        }
+      }
+
+      // Address - look for text patterns
+      const addressEl = listing.querySelector('.W4Efsd') ||
+                        listing.querySelector('[class*="address"]');
+      if (addressEl) {
+        // Get address from spans within
+        const spans = addressEl.querySelectorAll('span');
+        for (const span of spans) {
+          const text = span.textContent.trim();
+          // Address usually has numbers and street indicators
+          if (text.match(/\d+.*(?:St|Ave|Rd|Blvd|Dr|Ln|Way|Ct)/i) ||
+              text.match(/^\d+\s+\w+/)) {
+            info.address = text;
+            break;
+          }
+        }
+      }
+
+      // Category - usually first span in info section
+      const categoryEl = listing.querySelector('.W4Efsd span:first-child') ||
+                         listing.querySelector('.DkEaL') ||
+                         listing.querySelector('[class*="category"]');
+      if (categoryEl) {
+        const catText = categoryEl.textContent.trim();
+        // Category usually doesn't have numbers and is short
+        if (catText.length < 50 && !catText.match(/\d{3}/)) {
+          info.category = catText;
+        }
+      }
+
+      // Rating
+      const ratingEl = listing.querySelector('span.MW4etd') ||
+                       listing.querySelector('[role="img"][aria-label*="stars"]');
+      if (ratingEl) {
+        info.rating = ratingEl.textContent.trim() ||
+                      ratingEl.getAttribute('aria-label')?.match(/[\d.]+/)?.[0];
+      }
+
+      // Only add if we have a name
+      if (info.name && info.name.length > 1) {
+        businesses.push(info);
+        console.log('[Lead Hunter] Extracted listing:', info.name);
+      }
     });
 
     return businesses;
