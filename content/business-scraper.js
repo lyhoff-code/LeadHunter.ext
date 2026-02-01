@@ -16,15 +16,47 @@
    */
   function detectPlatform() {
     const host = window.location.hostname;
+    // Social Media
     if (host.includes('facebook.com')) return 'facebook';
-    if (host.includes('linkedin.com')) return 'linkedin';
-    if (host.includes('yelp.com')) return 'yelp';
-    if (host.includes('google.com')) return 'google';
     if (host.includes('instagram.com')) return 'instagram';
     if (host.includes('twitter.com') || host.includes('x.com')) return 'twitter';
+    if (host.includes('linkedin.com')) return 'linkedin';
+    if (host.includes('nextdoor.com')) return 'nextdoor';
+
+    // Business Directories
+    if (host.includes('yelp.com')) return 'yelp';
+    if (host.includes('bbb.org')) return 'bbb';
+    if (host.includes('yellowpages.com')) return 'yellowpages';
+    if (host.includes('manta.com')) return 'manta';
+    if (host.includes('trustpilot.com')) return 'trustpilot';
+
+    // Home Services
     if (host.includes('thumbtack.com')) return 'thumbtack';
     if (host.includes('houzz.com')) return 'houzz';
+    if (host.includes('angi.com') || host.includes('angieslist.com')) return 'angi';
+    if (host.includes('homeadvisor.com')) return 'homeadvisor';
     if (host.includes('alignable.com')) return 'alignable';
+
+    // Healthcare
+    if (host.includes('healthgrades.com')) return 'healthgrades';
+    if (host.includes('zocdoc.com')) return 'zocdoc';
+
+    // B2B Data
+    if (host.includes('crunchbase.com')) return 'crunchbase';
+    if (host.includes('zoominfo.com')) return 'zoominfo';
+    if (host.includes('apollo.io')) return 'apollo';
+
+    // Job Sites (for finding businesses)
+    if (host.includes('indeed.com')) return 'indeed';
+    if (host.includes('ziprecruiter.com')) return 'ziprecruiter';
+
+    // Q&A / Forums
+    if (host.includes('reddit.com')) return 'reddit';
+    if (host.includes('quora.com')) return 'quora';
+
+    // Maps
+    if (host.includes('google.com')) return 'google';
+
     return 'website';
   }
 
@@ -91,6 +123,60 @@
                                   document.querySelector('a[data-testid="UserUrl"]') ||
                                   document.body.innerText.includes('@') && document.body.innerText.includes('.com');
         return isProfilePage && hasTwitterContact;
+
+      case 'bbb':
+        return path.includes('/profile/');
+
+      case 'yellowpages':
+        return path.includes('/mip/') || (path.match(/\/[^\/]+\/[^\/]+/) && document.querySelector('.business-name'));
+
+      case 'manta':
+        return path.includes('/c/') || path.includes('/company/');
+
+      case 'trustpilot':
+        return path.includes('/review/');
+
+      case 'angi':
+        return path.includes('/companylist/') || path.includes('/reviews/');
+
+      case 'homeadvisor':
+        return path.includes('/rated.') || path.includes('/pro/');
+
+      case 'nextdoor':
+        return path.includes('/pages/') || path.includes('/business/');
+
+      case 'healthgrades':
+        return path.includes('/physician/') || path.includes('/dentist/') || path.includes('/provider/');
+
+      case 'zocdoc':
+        return path.includes('/doctor/') || path.includes('/dentist/');
+
+      case 'crunchbase':
+        return path.includes('/organization/');
+
+      case 'zoominfo':
+        return path.includes('/c/') || path.includes('/company/');
+
+      case 'apollo':
+        return path.includes('/companies/') || path.includes('/organization/');
+
+      case 'indeed':
+        return path.includes('/cmp/') || path.includes('/companies/');
+
+      case 'ziprecruiter':
+        return path.includes('/c/') || path.includes('/company/');
+
+      case 'reddit':
+        // Reddit - look for business mentions in posts
+        return path.includes('/r/') && (
+          document.body.innerText.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) ||
+          document.body.innerText.includes('@') && document.body.innerText.includes('.com')
+        );
+
+      case 'quora':
+        // Quora - similar approach
+        return document.body.innerText.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) ||
+               (document.body.innerText.includes('@') && document.body.innerText.includes('.com'));
 
       case 'thumbtack':
         return path.includes('/pro/') || path.includes('/profile/');
@@ -160,6 +246,37 @@
         return extractInstagramBusiness();
       case 'twitter':
         return extractTwitterBusiness();
+      case 'bbb':
+        return extractBBBBusiness();
+      case 'yellowpages':
+        return extractYellowPagesBusiness();
+      case 'manta':
+        return extractMantaBusiness();
+      case 'trustpilot':
+        return extractTrustpilotBusiness();
+      case 'angi':
+        return extractAngiBusiness();
+      case 'homeadvisor':
+        return extractHomeAdvisorBusiness();
+      case 'nextdoor':
+        return extractNextdoorBusiness();
+      case 'healthgrades':
+        return extractHealthgradesBusiness();
+      case 'zocdoc':
+        return extractZocdocBusiness();
+      case 'crunchbase':
+        return extractCrunchbaseBusiness();
+      case 'zoominfo':
+        return extractZoominfoBusiness();
+      case 'apollo':
+        return extractApolloBusiness();
+      case 'indeed':
+        return extractIndeedBusiness();
+      case 'ziprecruiter':
+        return extractZiprecruiterBusiness();
+      case 'reddit':
+      case 'quora':
+        return extractForumBusiness();
       case 'thumbtack':
         return extractThumbstackBusiness();
       case 'houzz':
@@ -981,6 +1098,998 @@
     const websiteEl = document.querySelector('a[class*="website"]');
     if (websiteEl) info.website = websiteEl.href;
 
+    return info;
+  }
+
+  /**
+   * Extract from BBB Business Profile
+   */
+  function extractBBBBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      rating: '',
+      accredited: false
+    };
+
+    // Business name
+    const nameSelectors = [
+      '.bds-h2.text-size-5',
+      'h1.bds-h1',
+      '.dtm-business-name',
+      'h1',
+      '[class*="business-name"]'
+    ];
+    for (const sel of nameSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 1) {
+        info.name = el.textContent.trim();
+        break;
+      }
+    }
+
+    // Phone - BBB usually has phone in contact section
+    const phoneLink = document.querySelector('a[href^="tel:"]');
+    if (phoneLink) {
+      info.phone = phoneLink.href.replace('tel:', '').trim();
+    } else {
+      const pageText = document.body.innerText;
+      const phonePatterns = [
+        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
+        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+      ];
+      for (const pattern of phonePatterns) {
+        const match = pageText.match(pattern);
+        if (match) {
+          info.phone = match[0];
+          break;
+        }
+      }
+    }
+
+    // Website
+    const websiteSelectors = [
+      'a[href*="bbbclick"][data-link-type="website"]',
+      '.dtm-url a',
+      'a.website-link',
+      'a[data-tracking*="website"]'
+    ];
+    for (const sel of websiteSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        // BBB uses redirect links, try to get the display URL
+        const displayUrl = el.textContent.trim();
+        if (displayUrl && displayUrl.includes('.')) {
+          info.website = displayUrl.startsWith('http') ? displayUrl : 'https://' + displayUrl;
+        } else if (el.href) {
+          info.website = el.href;
+        }
+        break;
+      }
+    }
+
+    // Address
+    const addressSelectors = [
+      '.dtm-address',
+      'address',
+      '.bds-body.text-size-5[class*="address"]',
+      '[class*="address-line"]'
+    ];
+    const addressParts = [];
+    for (const sel of addressSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        info.address = el.textContent.replace(/\s+/g, ' ').trim();
+        break;
+      }
+    }
+
+    // If no address from selectors, search in page text
+    if (!info.address) {
+      const pageText = document.body.innerText;
+      const addressMatch = pageText.match(/\d+\s+[A-Za-z]+\s+(St|Street|Rd|Road|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Ln|Lane)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}/i);
+      if (addressMatch) {
+        info.address = addressMatch[0];
+      }
+    }
+
+    // Category/Business Type
+    const categorySelectors = [
+      '.dtm-category a',
+      '.business-categories a',
+      '[class*="category"] a',
+      'dd[class*="category"]'
+    ];
+    for (const sel of categorySelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim()) {
+        info.category = el.textContent.trim();
+        break;
+      }
+    }
+
+    // Rating
+    const ratingEl = document.querySelector('.dtm-rating') ||
+                     document.querySelector('[class*="letter-grade"]') ||
+                     document.querySelector('.bds-rating');
+    if (ratingEl) {
+      info.rating = ratingEl.textContent.trim();
+    }
+
+    // Accreditation status
+    const accreditedEl = document.querySelector('.dtm-accredited') ||
+                         document.body.innerText.match(/BBB Accredited/i);
+    info.accredited = !!accreditedEl;
+
+    // Email from page text
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('bbb.org') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted BBB business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from YellowPages Business Profile
+   */
+  function extractYellowPagesBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: ''
+    };
+
+    // Business name
+    const nameEl = document.querySelector('.business-name h1') ||
+                   document.querySelector('h1.dockable-business-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Phone
+    const phoneEl = document.querySelector('a.phone') ||
+                    document.querySelector('a[href^="tel:"]') ||
+                    document.querySelector('.phone');
+    if (phoneEl) {
+      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') : phoneEl.textContent.trim();
+    }
+
+    // Website
+    const websiteEl = document.querySelector('a.website-link') ||
+                      document.querySelector('a[class*="website"]') ||
+                      document.querySelector('a[data-analytics*="website"]');
+    if (websiteEl) info.website = websiteEl.href;
+
+    // Address
+    const addressEl = document.querySelector('.address') ||
+                      document.querySelector('.street-address') ||
+                      document.querySelector('address');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Category
+    const categoryEl = document.querySelector('.categories a') ||
+                       document.querySelector('.business-categories');
+    if (categoryEl) info.category = categoryEl.textContent.trim();
+
+    // Email from page
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('yellowpages') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted YellowPages business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Manta Business Profile
+   */
+  function extractMantaBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      employees: '',
+      revenue: ''
+    };
+
+    // Business name
+    const nameEl = document.querySelector('h1[itemprop="name"]') ||
+                   document.querySelector('.company-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]') ||
+                    document.querySelector('[itemprop="telephone"]');
+    if (phoneEl) {
+      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') : phoneEl.textContent.trim();
+    }
+
+    // Website
+    const websiteEl = document.querySelector('a[itemprop="url"]') ||
+                      document.querySelector('a.website');
+    if (websiteEl && !websiteEl.href.includes('manta.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Address
+    const addressEl = document.querySelector('[itemprop="address"]') ||
+                      document.querySelector('.address');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Category
+    const categoryEl = document.querySelector('[itemprop="industry"]') ||
+                       document.querySelector('.industry');
+    if (categoryEl) info.category = categoryEl.textContent.trim();
+
+    // Company size
+    const employeesEl = document.querySelector('[itemprop="numberOfEmployees"]');
+    if (employeesEl) info.employees = employeesEl.textContent.trim();
+
+    // Email
+    const emailEl = document.querySelector('a[href^="mailto:"]');
+    if (emailEl) {
+      info.email = emailEl.href.replace('mailto:', '').split('?')[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Manta business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Trustpilot Business Profile
+   */
+  function extractTrustpilotBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      rating: '',
+      reviewCount: ''
+    };
+
+    // Business name
+    const nameEl = document.querySelector('h1[data-business-unit-name]') ||
+                   document.querySelector('span[data-business-unit-name]') ||
+                   document.querySelector('h1');
+    if (nameEl) {
+      info.name = nameEl.getAttribute('data-business-unit-name') || nameEl.textContent.trim();
+    }
+
+    // Website - Trustpilot shows the website domain
+    const websiteEl = document.querySelector('a[data-business-unit-website]') ||
+                      document.querySelector('.business-unit-profile-summary a[href^="http"]');
+    if (websiteEl) {
+      const domain = websiteEl.getAttribute('data-business-unit-website') ||
+                     websiteEl.textContent.trim();
+      if (domain && !domain.includes('trustpilot')) {
+        info.website = domain.startsWith('http') ? domain : 'https://' + domain;
+      }
+    }
+
+    // Rating
+    const ratingEl = document.querySelector('[data-rating-typography]') ||
+                     document.querySelector('.star-rating');
+    if (ratingEl) {
+      info.rating = ratingEl.textContent.trim() || ratingEl.getAttribute('data-rating');
+    }
+
+    // Review count
+    const reviewEl = document.querySelector('[data-reviews-count-typography]');
+    if (reviewEl) {
+      const match = reviewEl.textContent.match(/[\d,]+/);
+      if (match) info.reviewCount = match[0].replace(',', '');
+    }
+
+    // Category
+    const categoryEl = document.querySelector('.business-unit-categories a') ||
+                       document.querySelector('[data-business-unit-categories]');
+    if (categoryEl) info.category = categoryEl.textContent.trim();
+
+    // Address from page text
+    const pageText = document.body.innerText;
+    const addressMatch = pageText.match(/\d+\s+[A-Za-z]+\s+(St|Street|Rd|Road|Ave|Avenue)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}/i);
+    if (addressMatch) {
+      info.address = addressMatch[0];
+    }
+
+    // Phone
+    const phoneMatch = pageText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+    if (phoneMatch) info.phone = phoneMatch[0];
+
+    // Email
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('trustpilot') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Trustpilot business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Angi (formerly Angie's List) Business Profile
+   */
+  function extractAngiBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      rating: ''
+    };
+
+    // Business name
+    const nameEl = document.querySelector('h1[data-testid="business-name"]') ||
+                   document.querySelector('.business-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]') ||
+                    document.querySelector('[data-testid="phone-number"]');
+    if (phoneEl) {
+      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') : phoneEl.textContent.trim();
+    }
+
+    // Website
+    const websiteEl = document.querySelector('a[data-testid="website-link"]') ||
+                      document.querySelector('a.website-link');
+    if (websiteEl && !websiteEl.href.includes('angi.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Address
+    const addressEl = document.querySelector('[data-testid="address"]') ||
+                      document.querySelector('.service-area');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Category
+    const categoryEl = document.querySelector('[data-testid="category"]') ||
+                       document.querySelector('.business-category');
+    if (categoryEl) info.category = categoryEl.textContent.trim();
+
+    // Rating
+    const ratingEl = document.querySelector('[data-testid="rating"]') ||
+                     document.querySelector('.rating-value');
+    if (ratingEl) info.rating = ratingEl.textContent.trim();
+
+    // Email from page
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('angi') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Angi business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from HomeAdvisor Business Profile
+   */
+  function extractHomeAdvisorBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      rating: ''
+    };
+
+    // Business name
+    const nameEl = document.querySelector('.pro-name') ||
+                   document.querySelector('h1[itemprop="name"]') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]') ||
+                    document.querySelector('[itemprop="telephone"]');
+    if (phoneEl) {
+      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') : phoneEl.textContent.trim();
+    }
+
+    // Website
+    const websiteEl = document.querySelector('a[itemprop="url"]') ||
+                      document.querySelector('.website-link');
+    if (websiteEl && !websiteEl.href.includes('homeadvisor.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Address
+    const addressEl = document.querySelector('[itemprop="address"]') ||
+                      document.querySelector('.service-area');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Category
+    const categoryEl = document.querySelector('.pro-category') ||
+                       document.querySelector('[itemprop="category"]');
+    if (categoryEl) info.category = categoryEl.textContent.trim();
+
+    // Rating
+    const ratingEl = document.querySelector('[itemprop="ratingValue"]') ||
+                     document.querySelector('.rating');
+    if (ratingEl) info.rating = ratingEl.textContent.trim();
+
+    console.log('[Lead Hunter] Extracted HomeAdvisor business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Nextdoor Business Page
+   */
+  function extractNextdoorBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: ''
+    };
+
+    // Business name
+    const nameEl = document.querySelector('h1[data-testid="business-name"]') ||
+                   document.querySelector('.business-profile-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]');
+    if (phoneEl) info.phone = phoneEl.href.replace('tel:', '');
+
+    // Website
+    const websiteEl = document.querySelector('a[data-testid="business-website"]');
+    if (websiteEl && !websiteEl.href.includes('nextdoor.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Address
+    const addressEl = document.querySelector('[data-testid="business-address"]') ||
+                      document.querySelector('.business-address');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Category
+    const categoryEl = document.querySelector('[data-testid="business-category"]');
+    if (categoryEl) info.category = categoryEl.textContent.trim();
+
+    // Email from page
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('nextdoor') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Nextdoor business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Healthgrades Provider Profile
+   */
+  function extractHealthgradesBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      specialty: '',
+      rating: ''
+    };
+
+    // Provider/Practice name
+    const nameEl = document.querySelector('h1[itemprop="name"]') ||
+                   document.querySelector('.provider-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]') ||
+                    document.querySelector('[itemprop="telephone"]');
+    if (phoneEl) {
+      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') : phoneEl.textContent.trim();
+    }
+
+    // Website
+    const websiteEl = document.querySelector('a[data-testid="website-link"]') ||
+                      document.querySelector('a.website');
+    if (websiteEl && !websiteEl.href.includes('healthgrades.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Address
+    const addressEl = document.querySelector('[itemprop="address"]') ||
+                      document.querySelector('.location-address');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Specialty
+    const specialtyEl = document.querySelector('[itemprop="medicalSpecialty"]') ||
+                        document.querySelector('.provider-specialty');
+    if (specialtyEl) {
+      info.specialty = specialtyEl.textContent.trim();
+      info.category = info.specialty;
+    }
+
+    // Rating
+    const ratingEl = document.querySelector('[itemprop="ratingValue"]') ||
+                     document.querySelector('.patient-satisfaction-score');
+    if (ratingEl) info.rating = ratingEl.textContent.trim();
+
+    // Email from page
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('healthgrades') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Healthgrades business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Zocdoc Provider Profile
+   */
+  function extractZocdocBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      specialty: '',
+      rating: '',
+      insurance: ''
+    };
+
+    // Provider name
+    const nameEl = document.querySelector('h1[data-test="doctor-profile-name"]') ||
+                   document.querySelector('.profile-header h1') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]');
+    if (phoneEl) info.phone = phoneEl.href.replace('tel:', '');
+
+    // Address
+    const addressEl = document.querySelector('[data-test="location-address"]') ||
+                      document.querySelector('.location-info');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Specialty
+    const specialtyEl = document.querySelector('[data-test="specialty"]') ||
+                        document.querySelector('.specialty-list');
+    if (specialtyEl) {
+      info.specialty = specialtyEl.textContent.trim();
+      info.category = info.specialty;
+    }
+
+    // Rating
+    const ratingEl = document.querySelector('[data-test="rating"]') ||
+                     document.querySelector('.rating-score');
+    if (ratingEl) info.rating = ratingEl.textContent.trim();
+
+    // Insurance accepted
+    const insuranceEl = document.querySelector('[data-test="insurance-list"]');
+    if (insuranceEl) info.insurance = insuranceEl.textContent.trim();
+
+    console.log('[Lead Hunter] Extracted Zocdoc business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Crunchbase Organization Profile
+   */
+  function extractCrunchbaseBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      description: '',
+      founded: '',
+      employees: '',
+      funding: ''
+    };
+
+    // Company name
+    const nameEl = document.querySelector('h1[class*="profile-name"]') ||
+                   document.querySelector('.entity-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Website
+    const websiteEl = document.querySelector('a[class*="website-link"]') ||
+                      document.querySelector('a[data-cb-route="website"]');
+    if (websiteEl && !websiteEl.href.includes('crunchbase.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Description
+    const descEl = document.querySelector('[class*="description"]') ||
+                   document.querySelector('.short-description');
+    if (descEl) info.description = descEl.textContent.trim().substring(0, 500);
+
+    // Location/Address
+    const locationEl = document.querySelector('[class*="location-info"]') ||
+                       document.querySelector('[data-cb-route="headquarters"]');
+    if (locationEl) info.address = locationEl.textContent.trim();
+
+    // Industry/Category
+    const industryEl = document.querySelector('[class*="industries"]') ||
+                       document.querySelector('[data-cb-route="industries"]');
+    if (industryEl) info.category = industryEl.textContent.trim();
+
+    // Founded date
+    const foundedEl = document.querySelector('[data-cb-route="founded-date"]');
+    if (foundedEl) info.founded = foundedEl.textContent.trim();
+
+    // Employee count
+    const employeesEl = document.querySelector('[class*="employee"]') ||
+                        document.querySelector('[data-cb-route="number-of-employees"]');
+    if (employeesEl) info.employees = employeesEl.textContent.trim();
+
+    // Total funding
+    const fundingEl = document.querySelector('[class*="total-funding"]');
+    if (fundingEl) info.funding = fundingEl.textContent.trim();
+
+    // Phone and email from page text
+    const pageText = document.body.innerText;
+    const phoneMatch = pageText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+    if (phoneMatch) info.phone = phoneMatch[0];
+
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('crunchbase') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Crunchbase business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from ZoomInfo Company Profile
+   */
+  function extractZoominfoBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      employees: '',
+      revenue: ''
+    };
+
+    // Company name
+    const nameEl = document.querySelector('h1[class*="company-name"]') ||
+                   document.querySelector('.company-header h1') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Website
+    const websiteEl = document.querySelector('a[class*="website"]') ||
+                      document.querySelector('a[data-testid="company-website"]');
+    if (websiteEl && !websiteEl.href.includes('zoominfo.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]') ||
+                    document.querySelector('[class*="phone-number"]');
+    if (phoneEl) {
+      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') : phoneEl.textContent.trim();
+    }
+
+    // Address
+    const addressEl = document.querySelector('[class*="headquarters"]') ||
+                      document.querySelector('.company-location');
+    if (addressEl) info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
+
+    // Industry
+    const industryEl = document.querySelector('[class*="industry"]');
+    if (industryEl) info.category = industryEl.textContent.trim();
+
+    // Employees
+    const employeesEl = document.querySelector('[class*="employee-count"]');
+    if (employeesEl) info.employees = employeesEl.textContent.trim();
+
+    // Revenue
+    const revenueEl = document.querySelector('[class*="revenue"]');
+    if (revenueEl) info.revenue = revenueEl.textContent.trim();
+
+    // Email from page
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('zoominfo') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted ZoomInfo business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Apollo.io Company Profile
+   */
+  function extractApolloBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      employees: ''
+    };
+
+    // Company name
+    const nameEl = document.querySelector('h1[class*="company"]') ||
+                   document.querySelector('.organization-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Website
+    const websiteEl = document.querySelector('a[class*="website"]') ||
+                      document.querySelector('a[href^="http"]:not([href*="apollo.io"])');
+    if (websiteEl && !websiteEl.href.includes('apollo.io')) {
+      info.website = websiteEl.href;
+    }
+
+    // Phone
+    const phoneEl = document.querySelector('a[href^="tel:"]');
+    if (phoneEl) info.phone = phoneEl.href.replace('tel:', '');
+
+    // Location
+    const locationEl = document.querySelector('[class*="location"]') ||
+                       document.querySelector('.headquarters');
+    if (locationEl) info.address = locationEl.textContent.trim();
+
+    // Industry
+    const industryEl = document.querySelector('[class*="industry"]');
+    if (industryEl) info.category = industryEl.textContent.trim();
+
+    // Employees
+    const employeesEl = document.querySelector('[class*="employee"]');
+    if (employeesEl) info.employees = employeesEl.textContent.trim();
+
+    // Email
+    const pageText = document.body.innerText;
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('apollo.io') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Apollo business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from Indeed Company Profile
+   */
+  function extractIndeedBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      employees: '',
+      rating: ''
+    };
+
+    // Company name
+    const nameEl = document.querySelector('h1[data-testid="company-name"]') ||
+                   document.querySelector('.cmp-CompanyHeader-name') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Website
+    const websiteEl = document.querySelector('a[data-testid="company-website"]') ||
+                      document.querySelector('a.cmp-AboutSection-websiteLink');
+    if (websiteEl && !websiteEl.href.includes('indeed.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Location/Address
+    const locationEl = document.querySelector('[data-testid="company-location"]') ||
+                       document.querySelector('.cmp-CompanyHeader-location');
+    if (locationEl) info.address = locationEl.textContent.trim();
+
+    // Industry
+    const industryEl = document.querySelector('[data-testid="company-industry"]') ||
+                       document.querySelector('.cmp-AboutSection-industry');
+    if (industryEl) info.category = industryEl.textContent.trim();
+
+    // Company size
+    const sizeEl = document.querySelector('[data-testid="company-size"]') ||
+                   document.querySelector('.cmp-AboutSection-size');
+    if (sizeEl) info.employees = sizeEl.textContent.trim();
+
+    // Rating
+    const ratingEl = document.querySelector('[data-testid="company-rating"]') ||
+                     document.querySelector('.cmp-CompanyHeader-rating');
+    if (ratingEl) info.rating = ratingEl.textContent.trim();
+
+    // Phone and email from page
+    const pageText = document.body.innerText;
+    const phoneMatch = pageText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+    if (phoneMatch) info.phone = phoneMatch[0];
+
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('indeed') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted Indeed business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from ZipRecruiter Company Profile
+   */
+  function extractZiprecruiterBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      employees: ''
+    };
+
+    // Company name
+    const nameEl = document.querySelector('h1[class*="company-name"]') ||
+                   document.querySelector('.company-header h1') ||
+                   document.querySelector('h1');
+    if (nameEl) info.name = nameEl.textContent.trim();
+
+    // Website
+    const websiteEl = document.querySelector('a[class*="website"]');
+    if (websiteEl && !websiteEl.href.includes('ziprecruiter.com')) {
+      info.website = websiteEl.href;
+    }
+
+    // Location
+    const locationEl = document.querySelector('[class*="location"]') ||
+                       document.querySelector('.company-location');
+    if (locationEl) info.address = locationEl.textContent.trim();
+
+    // Industry
+    const industryEl = document.querySelector('[class*="industry"]');
+    if (industryEl) info.category = industryEl.textContent.trim();
+
+    // Size
+    const sizeEl = document.querySelector('[class*="company-size"]');
+    if (sizeEl) info.employees = sizeEl.textContent.trim();
+
+    // Phone and email from page
+    const pageText = document.body.innerText;
+    const phoneMatch = pageText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+    if (phoneMatch) info.phone = phoneMatch[0];
+
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('ziprecruiter') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    console.log('[Lead Hunter] Extracted ZipRecruiter business:', info);
+    return info;
+  }
+
+  /**
+   * Extract business info from forum posts (Reddit, Quora)
+   */
+  function extractForumBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
+      source: platform
+    };
+
+    const pageText = document.body.innerText;
+
+    // Phone patterns
+    const phonePatterns = [
+      /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
+      /\(\d{3}\)\s*\d{3}[-.]?\d{4}/g,
+      /\d{3}[-.\s]\d{3}[-.\s]\d{4}/g
+    ];
+
+    for (const pattern of phonePatterns) {
+      const matches = pageText.match(pattern);
+      if (matches && matches.length > 0) {
+        info.phone = matches[0];
+        break;
+      }
+    }
+
+    // Email
+    const emailMatches = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+    if (emailMatches) {
+      for (const email of emailMatches) {
+        if (!email.includes('reddit') && !email.includes('quora') &&
+            !email.includes('example') && !email.includes('noreply')) {
+          info.email = email;
+          break;
+        }
+      }
+    }
+
+    // Website - look for URLs in text
+    const urlPattern = /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,})(?:\/\S*)?/g;
+    const urlMatches = pageText.match(urlPattern);
+    if (urlMatches) {
+      for (const url of urlMatches) {
+        if (!url.includes('reddit.com') && !url.includes('quora.com') &&
+            !url.includes('google.com') && !url.includes('imgur.com') &&
+            !url.includes('redd.it') && !url.includes('qph.')) {
+          info.website = url.startsWith('http') ? url : 'https://' + url;
+          // Try to extract business name from domain
+          try {
+            const domain = new URL(info.website).hostname.replace('www.', '');
+            info.name = domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
+          } catch (e) {}
+          break;
+        }
+      }
+    }
+
+    // Try to get name from title or heading
+    if (!info.name) {
+      const titleEl = document.querySelector('h1') || document.querySelector('title');
+      if (titleEl) {
+        const title = titleEl.textContent.trim();
+        // Extract business names mentioned in title (heuristic)
+        const businessPatterns = [
+          /(?:recommend|review|about|hired|called|contact)\s+([A-Z][a-zA-Z\s&']+(?:LLC|Inc|Corp|Co|Services?)?)/i,
+          /([A-Z][a-zA-Z\s&']+(?:Plumbing|Electric|HVAC|Roofing|Landscaping|Cleaning|Services?))/i
+        ];
+        for (const pattern of businessPatterns) {
+          const match = title.match(pattern);
+          if (match) {
+            info.name = match[1].trim();
+            break;
+          }
+        }
+      }
+    }
+
+    console.log('[Lead Hunter] Extracted forum business info:', info);
     return info;
   }
 
