@@ -514,41 +514,103 @@ async function saveLead(lead) {
   const newEmail = normalizeEmail(lead.email);
   const newComment = (lead.comment || '').trim();
 
-  // Check for duplicates with multiple criteria
-  const isDuplicate = leads.some(l => {
-    // Same comment on same platform
-    if (newComment && l.comment && l.comment.trim() === newComment && l.platform === lead.platform) {
-      return true;
+  // Find existing lead to merge with (if any)
+  let existingLead = null;
+  let existingIndex = -1;
+
+  for (let i = 0; i < leads.length; i++) {
+    const l = leads[i];
+
+    // Same phone number - CROSS PLATFORM
+    const existingPhone = normalizePhone(l.phone);
+    if (newPhone && newPhone.length >= 7 && existingPhone === newPhone) {
+      existingLead = l;
+      existingIndex = i;
+      break;
+    }
+
+    // Same email - CROSS PLATFORM
+    const existingEmail = normalizeEmail(l.email);
+    if (newEmail && existingEmail === newEmail) {
+      existingLead = l;
+      existingIndex = i;
+      break;
     }
 
     // Same profile URL
     if (lead.profileUrl && l.profileUrl && lead.profileUrl === l.profileUrl) {
-      return true;
+      existingLead = l;
+      existingIndex = i;
+      break;
     }
 
-    // Same name + platform (for leads with names)
+    // Same comment on same platform
+    if (newComment && l.comment && l.comment.trim() === newComment && l.platform === lead.platform) {
+      existingLead = l;
+      existingIndex = i;
+      break;
+    }
+
+    // Same name + platform
     const existingName = normalizeName(l.name);
     if (newName && newName !== 'unknown' && existingName === newName && l.platform === lead.platform) {
-      return true;
+      existingLead = l;
+      existingIndex = i;
+      break;
+    }
+  }
+
+  // If existing lead found, ENRICH with missing data
+  if (existingLead) {
+    let updated = false;
+
+    // Add missing phone
+    if (lead.phone && !existingLead.phone) {
+      existingLead.phone = lead.phone;
+      updated = true;
     }
 
-    // Same phone number
-    const existingPhone = normalizePhone(l.phone);
-    if (newPhone && newPhone.length >= 7 && existingPhone === newPhone) {
-      return true;
+    // Add missing email
+    if (lead.email && !existingLead.email) {
+      existingLead.email = lead.email;
+      updated = true;
     }
 
-    // Same email
-    const existingEmail = normalizeEmail(l.email);
-    if (newEmail && existingEmail === newEmail) {
-      return true;
+    // Add missing website
+    if (lead.website && !existingLead.website) {
+      existingLead.website = lead.website;
+      updated = true;
     }
 
-    return false;
-  });
+    // Add missing company
+    if (lead.company && !existingLead.company) {
+      existingLead.company = lead.company;
+      updated = true;
+    }
 
-  if (isDuplicate) {
-    console.log('Lead already exists (duplicate):', lead.name);
+    // Add missing address
+    if (lead.address && !existingLead.address) {
+      existingLead.address = lead.address;
+      updated = true;
+    }
+
+    // Update score if new one is higher
+    if (lead.score > existingLead.score) {
+      existingLead.score = lead.score;
+      existingLead.urgencyLevel = lead.urgencyLevel;
+      existingLead.analysis = lead.analysis;
+      existingLead.painPoints = lead.painPoints;
+      updated = true;
+    }
+
+    if (updated) {
+      leads[existingIndex] = existingLead;
+      await chrome.storage.local.set({ leads, stats });
+      console.log('[Enrich] Updated existing lead:', existingLead.name);
+      chrome.runtime.sendMessage({ type: 'LEAD_UPDATED', lead: existingLead }).catch(() => {});
+    } else {
+      console.log('Lead already complete:', lead.name);
+    }
     return;
   }
 
@@ -664,39 +726,110 @@ async function handleScrapedBusiness(data) {
     const newPhone = normalizePhone(data.phone);
     const newEmail = normalizeEmail(data.email);
 
-    const isDuplicate = leads.some(l => {
-      // Same phone number - CROSS PLATFORM (phone is globally unique)
+    // Find existing lead to merge with (if any)
+    let existingLead = null;
+    let existingIndex = -1;
+
+    for (let i = 0; i < leads.length; i++) {
+      const l = leads[i];
+
+      // Same phone number - CROSS PLATFORM
       const existingPhone = normalizePhone(l.phone);
       if (newPhone && newPhone.length >= 7 && existingPhone === newPhone) {
-        console.log('[Dedup] Duplicate business by phone:', newPhone);
-        return true;
+        console.log('[Dedup] Found existing by phone:', newPhone);
+        existingLead = l;
+        existingIndex = i;
+        break;
       }
 
-      // Same email - CROSS PLATFORM (email is globally unique)
+      // Same email - CROSS PLATFORM
       const existingEmail = normalizeEmail(l.email);
       if (newEmail && existingEmail === newEmail) {
-        console.log('[Dedup] Duplicate business by email:', newEmail);
-        return true;
+        console.log('[Dedup] Found existing by email:', newEmail);
+        existingLead = l;
+        existingIndex = i;
+        break;
       }
 
-      // Same URL is definitely duplicate
+      // Same URL
       if (l.profileUrl && data.url && l.profileUrl === data.url) {
-        return true;
+        existingLead = l;
+        existingIndex = i;
+        break;
       }
 
       // Same business name - CROSS PLATFORM for scraped leads
-      // Business names are unique enough to dedupe across platforms
       const existingName = normalizeName(l.name);
       if (newName && newName.length > 3 && existingName === newName && l.leadType === 'scraped') {
-        console.log('[Dedup] Duplicate business by name:', newName);
-        return true;
+        console.log('[Dedup] Found existing by name:', newName);
+        existingLead = l;
+        existingIndex = i;
+        break;
+      }
+    }
+
+    // If existing lead found, ENRICH with missing data instead of rejecting
+    if (existingLead) {
+      let updated = false;
+
+      // Add missing phone
+      if (data.phone && !existingLead.phone) {
+        existingLead.phone = data.phone;
+        updated = true;
+        console.log('[Enrich] Added phone:', data.phone);
       }
 
-      return false;
-    });
+      // Add missing email
+      if (data.email && !existingLead.email) {
+        existingLead.email = data.email;
+        updated = true;
+        console.log('[Enrich] Added email:', data.email);
+      }
 
-    if (isDuplicate) {
-      console.log('Business already saved (duplicate):', data.name);
+      // Add missing website
+      if (data.website && !existingLead.website) {
+        existingLead.website = data.website;
+        updated = true;
+        console.log('[Enrich] Added website:', data.website);
+      }
+
+      // Add missing address
+      if (data.address && !existingLead.address) {
+        existingLead.address = data.address;
+        updated = true;
+        console.log('[Enrich] Added address:', data.address);
+      }
+
+      // Add missing rating/reviews
+      if (data.rating && !existingLead.rating) {
+        existingLead.rating = data.rating;
+        existingLead.reviewCount = data.reviewCount;
+        updated = true;
+      }
+
+      // Add missing category/industry
+      if (data.category && !existingLead.title) {
+        existingLead.title = data.category;
+        updated = true;
+      }
+
+      if (data.industry && !existingLead.industry) {
+        existingLead.industry = data.industry;
+        updated = true;
+      }
+
+      if (updated) {
+        leads[existingIndex] = existingLead;
+        await chrome.storage.local.set({ leads });
+        console.log('[Enrich] Updated existing lead:', existingLead.name);
+
+        // Broadcast update to popup
+        chrome.runtime.sendMessage({ type: 'LEAD_UPDATED', lead: existingLead }).catch(() => {});
+
+        return { success: true, enriched: true, lead: existingLead };
+      }
+
+      console.log('Business already complete:', data.name);
       return { success: false, error: 'duplicate' };
     }
 
