@@ -100,41 +100,87 @@ export async function sendToHubSpot(lead, apiKey) {
  * Update an existing contact
  */
 async function updateContact(contactId, lead, apiKey) {
-  const properties = {
-    notes_last_activity: new Date().toISOString(),
-    message: formatLeadMessage(lead)
-  };
+  // Build properties to update - include all available contact info
+  const properties = {};
 
-  const response = await fetch(`${HUBSPOT_API_URL}/crm/v3/objects/contacts/${contactId}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ properties })
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to update contact');
+  // Update phone if available
+  if (lead.phone) {
+    properties.phone = lead.phone;
   }
 
-  const data = await response.json();
+  // Update email if available
+  if (lead.email) {
+    properties.email = lead.email;
+  }
+
+  // Update company if available
+  if (lead.company) {
+    properties.company = lead.company;
+  }
+
+  // Update website if available
+  if (lead.website) {
+    properties.website = lead.website;
+  }
+
+  // Update job title if available
+  if (lead.title) {
+    properties.jobtitle = lead.title;
+  }
+
+  // Only make API call if we have properties to update
+  if (Object.keys(properties).length > 0) {
+    const response = await fetch(`${HUBSPOT_API_URL}/crm/v3/objects/contacts/${contactId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ properties })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.warn('HubSpot update warning:', error.message);
+      // Don't throw - continue to add note
+    }
+  }
 
   // Add note about the new lead activity
   await createNote(contactId, lead, apiKey);
 
-  return data;
+  return { id: contactId, updated: true };
 }
 
 /**
  * Create a note associated with a contact
  */
 async function createNote(contactId, lead, apiKey) {
-  // Different note format for scraped businesses vs social media leads
+  // Different note format based on lead type
   let noteBody;
 
-  if (lead.leadType === 'scraped') {
+  if (lead.leadType === 'image') {
+    noteBody = `
+🎯 Lead Hunter AI - Contacto de Imagen
+
+📷 Tipo: Extraído de imagen con AI Vision
+📱 Plataforma: ${lead.platform}
+📅 Fecha: ${new Date(lead.timestamp).toLocaleString()}
+🏷️ Industria: ${lead.industry || 'N/A'}
+
+📞 Información de Contacto:
+${lead.phone ? `• Teléfono: ${lead.phone}` : ''}
+${lead.email ? `• Email: ${lead.email}` : ''}
+${lead.website ? `• Website: ${lead.website}` : ''}
+${lead.address ? `• Dirección: ${lead.address}` : ''}
+${lead.company ? `• Empresa: ${lead.company}` : ''}
+
+🔗 Fuente: ${lead.profileUrl || 'N/A'}
+🖼️ Imagen: ${lead.imageSource || 'N/A'}
+
+💡 Nota: ${lead.notes || 'Contacto extraído automáticamente de imagen usando Gemini Vision AI.'}
+`.trim();
+  } else if (lead.leadType === 'scraped') {
     noteBody = `
 🎯 Lead Hunter AI - Negocio Scrapeado
 
