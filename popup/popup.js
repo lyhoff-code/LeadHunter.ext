@@ -149,11 +149,39 @@ class PopupController {
   async loadData() {
     const storage = await chrome.storage.local.get(['leads', 'settings', 'stats']);
     this.leads = storage.leads || [];
-    this.settings = storage.settings || this.getDefaultSettings();
+    // Merge stored settings with defaults so new fields get default values
+    const defaults = this.getDefaultSettings();
+    this.settings = { ...defaults, ...storage.settings };
+    // Ensure competitors has a value (for users who saved settings before this field existed)
+    if (!this.settings.competitors || this.settings.competitors.trim() === '') {
+      this.settings.competitors = defaults.competitors;
+    }
     this.stats = storage.stats || { scanned: 0, leadsFound: 0, hotLeads: 0 };
   }
 
   getDefaultSettings() {
+    // Default competitors for AI receptionist / virtual receptionist services
+    const defaultCompetitors = [
+      'Ruby',
+      'Smith.ai',
+      'Answering Service',
+      'AnswerConnect',
+      'PATLive',
+      'Moneypenny',
+      'Davinci Virtual',
+      'Gabbyville',
+      'Nexa',
+      'VoiceNation',
+      'MAP Communications',
+      'Specialty Answering Service',
+      'AnswerFirst',
+      'Go Answer',
+      'Abby Connect',
+      'My Receptionist',
+      'Alliance Virtual',
+      'Intelligent Office'
+    ].join('\n');
+
     return {
       geminiKey: '',
       hubspotKey: '',
@@ -162,7 +190,7 @@ class PopupController {
       googleSheetsUrl: '',
       minWords: 8,
       customKeywords: '',
-      competitors: 'Ruby\nSmith.ai\nAnswering Service',
+      competitors: defaultCompetitors,
       industries: [],
       notifyHotLeads: true,
       soundEnabled: false,
@@ -171,7 +199,8 @@ class PopupController {
       autoSendWebhook: false,
       autoSendSheets: false,
       autoFindEmail: false,
-      darkMode: false
+      darkMode: false,
+      imageScanning: true
     };
   }
 
@@ -956,7 +985,7 @@ class PopupController {
     document.getElementById('googleSheetsUrl').value = this.settings.googleSheetsUrl || '';
     document.getElementById('minWords').value = this.settings.minWords || 8;
     document.getElementById('customKeywords').value = this.settings.customKeywords || '';
-    document.getElementById('competitors').value = this.settings.competitors || '';
+    document.getElementById('competitors').value = this.settings.competitors || this.getDefaultSettings().competitors;
     document.getElementById('notifyHotLeads').checked = this.settings.notifyHotLeads !== false;
     document.getElementById('soundEnabled').checked = this.settings.soundEnabled || false;
     document.getElementById('autoSendHubspot').checked = this.settings.autoSendHubspot || false;
