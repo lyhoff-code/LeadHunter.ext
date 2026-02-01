@@ -43,7 +43,7 @@ function getDefaultSettings() {
     googleSheetsUrl: '',
     minWords: 8,
     customKeywords: '',
-    competitors: 'Ruby\nSmith.ai\nAnswering Service',
+    competitors: 'Ruby\nSmith.ai\nAnswerConnect\nPATLive\nVoiceNation\nAnswering Service\nReceptionist\nVirtual Receptionist\nAI Receptionist\nDialpad\nGrashopper\nRingCentral\nNextiva\nAircall',
     industries: [],
     notifyHotLeads: true,
     soundEnabled: false,

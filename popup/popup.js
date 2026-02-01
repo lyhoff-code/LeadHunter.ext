@@ -2,6 +2,7 @@
 
 import { generateAppsScriptCode } from '../utils/google-sheets.js';
 import { translations, t, getCurrentLanguage } from '../utils/i18n.js';
+import { getPainKeywordsForIndustries, COMMON_PAIN_KEYWORDS } from '../utils/industry-keywords.js';
 
 class PopupController {
   constructor() {
@@ -114,6 +115,25 @@ class PopupController {
   }
 
   /**
+   * Update pain keywords based on selected industries
+   */
+  updateKeywordsForIndustries() {
+    const industries = [];
+    document.querySelectorAll('input[name="industry"]:checked').forEach(cb => {
+      industries.push(cb.value);
+    });
+
+    // Get keywords for selected industries
+    const keywords = getPainKeywordsForIndustries(industries);
+
+    // Update the textarea
+    const textarea = document.getElementById('customKeywords');
+    if (textarea) {
+      textarea.value = keywords.join('\n');
+    }
+  }
+
+  /**
    * Change language and save preference
    */
   async changeLanguage(lang) {
@@ -193,9 +213,12 @@ class PopupController {
       header.addEventListener('click', () => this.toggleCategory(header));
     });
 
-    // Update category counts when checkboxes change
+    // Update category counts and keywords when checkboxes change
     document.querySelectorAll('input[name="industry"]').forEach(checkbox => {
-      checkbox.addEventListener('change', () => this.updateCategoryCounts());
+      checkbox.addEventListener('change', () => {
+        this.updateCategoryCounts();
+        this.updateKeywordsForIndustries();
+      });
     });
 
     document.getElementById('leadModal').addEventListener('click', (e) => {
@@ -938,6 +961,11 @@ class PopupController {
 
     // Update category counts
     this.updateCategoryCounts();
+
+    // Auto-populate keywords if industries selected but keywords empty
+    if (industries.length > 0 && !this.settings.customKeywords) {
+      this.updateKeywordsForIndustries();
+    }
 
     // Update scanning button state
     if (!this.settings.scanning) {
