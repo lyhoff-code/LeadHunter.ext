@@ -135,6 +135,7 @@
           <option value="pain" data-i18n="painLeads">🔥 Pain Leads</option>
           <option value="prospect" data-i18n="prospectLeads">👤 Prospects</option>
           <option value="scraped" data-i18n="scrapedLeads">🏢 Scraped</option>
+          <option value="image" data-i18n="imageLeads">📷 From Images</option>
           <option value="manual" data-i18n="manuallySaved">📌 Manual</option>
         </select>
       </div>
@@ -346,6 +347,17 @@
             <span data-i18n="soundAlert">Sound alert</span>
           </label>
         </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>📷 <span data-i18n="settingsImageScanning">Image Scanning (AI Vision)</span></h3>
+        <div class="setting-item">
+          <label class="toggle-label">
+            <input type="checkbox" id="imageScanning" checked>
+            <span data-i18n="enableImageScanning">Scan images for contacts</span>
+          </label>
+        </div>
+        <small data-i18n="imageScanningDesc">Uses Gemini Vision to extract contact info from images (business cards, flyers, etc.)</small>
       </div>
 
       <div class="settings-group">

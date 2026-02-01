@@ -9,6 +9,7 @@ import { sendToGoogleSheets } from '../utils/google-sheets.js';
 import { findEmail, checkCredits } from '../utils/email-finder.js';
 import { detectUrgencyFromText, calculateUrgencyDecay } from '../utils/urgency.js';
 import { checkPreviousContact, markProfileContacted, logInteraction, addInteraction } from '../utils/interaction-history.js';
+import { analyzeImageWithGemini, isValidImageUrl } from '../utils/gemini-vision.js';
 
 // State
 let settings = {};
@@ -123,6 +124,9 @@ async function handleMessage(message, sender) {
 
     case 'BUSINESS_SCRAPED':
       return await handleScrapedBusiness(message.data);
+
+    case 'ANALYZE_IMAGE':
+      return await handleImageAnalysis(message.imageUrl, message.context);
 
     default:
       return { error: 'Unknown message type' };
@@ -688,6 +692,145 @@ async function handleScrapedBusiness(data) {
     return { success: true, lead };
   } catch (error) {
     console.error('Scraped business save error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Analyze image with Gemini Vision
+async function handleImageAnalysis(imageUrl, context = {}) {
+  if (!isScanning) {
+    return { success: false, error: 'Scanning paused' };
+  }
+
+  if (!settings.geminiKey) {
+    return { success: false, error: 'No Gemini API key configured' };
+  }
+
+  if (!imageUrl || !isValidImageUrl(imageUrl)) {
+    return { success: false, error: 'Invalid image URL' };
+  }
+
+  try {
+    console.log('[LeadHunter] Analyzing image with Gemini Vision...');
+
+    // Analyze image with Gemini
+    const result = await analyzeImageWithGemini(
+      imageUrl,
+      settings.geminiKey,
+      settings.industries || []
+    );
+
+    if (!result || !result.hasContactInfo) {
+      console.log('[LeadHunter] No contact info found in image');
+      return { success: true, hasContactInfo: false };
+    }
+
+    // Only create lead if we have meaningful contact info
+    const hasUsefulData = result.data.email || result.data.phone || result.data.website ||
+                          (result.data.name && result.data.company);
+
+    if (!hasUsefulData) {
+      console.log('[LeadHunter] Image contact info not useful enough');
+      return { success: true, hasContactInfo: false };
+    }
+
+    // Check for duplicates
+    const storage = await chrome.storage.local.get(['leads']);
+    const leads = storage.leads || [];
+
+    const isDuplicate = leads.some(l =>
+      (result.data.email && l.email === result.data.email) ||
+      (result.data.phone && l.phone === result.data.phone) ||
+      (result.data.website && l.website === result.data.website) ||
+      (result.data.name && l.name === result.data.name && result.data.company && l.company === result.data.company)
+    );
+
+    if (isDuplicate) {
+      console.log('[LeadHunter] Contact from image already exists');
+      return { success: true, hasContactInfo: true, duplicate: true, data: result.data };
+    }
+
+    // Create lead from image data
+    const lead = {
+      id: generateId(),
+      name: result.data.name || result.data.company || 'Unknown',
+      title: result.data.jobTitle || '',
+      bio: result.notes || '',
+      profileUrl: context.postUrl || imageUrl,
+      platform: context.platform || 'image',
+      comment: context.postText || result.rawText || '',
+      score: result.confidence === 'high' ? 4 : (result.confidence === 'medium' ? 3 : 2),
+      urgencyLevel: 'low',
+      frustrationLevel: 0,
+      buyingIntent: 'unknown',
+      suggestedApproach: 'cold',
+      analysis: `Contacto extraído de imagen (${result.imageType || 'unknown'}). ${result.notes || ''}`,
+      painPoints: [],
+      industry: result.data.industry || settings.industries?.[0] || 'unknown',
+      isBusinessOwner: true,
+      mentionsCompetitor: false,
+      messageDraft: '',
+      timestamp: new Date().toISOString(),
+      detectedAt: new Date().toISOString(),
+      contacted: false,
+      sentToHubspot: false,
+      sentToWebhook: false,
+      sentToSheets: false,
+      email: result.data.email || null,
+      emailConfidence: result.data.email ? (result.confidence === 'high' ? 90 : 70) : null,
+      company: result.data.company || null,
+      website: result.data.website || null,
+      phone: result.data.phone || null,
+      address: result.data.address || null,
+      previouslyContacted: false,
+      previousInteractions: [],
+      screenshot: null,
+      notes: `Fuente: Imagen ${result.imageType || ''}. Autor: ${context.authorName || 'Unknown'}`,
+      leadType: 'image', // New lead type for image-extracted contacts
+      filterReason: 'image_extraction',
+      filterPriority: 'low',
+      detectedIndustry: result.data.industry || null,
+      imageSource: imageUrl,
+      socialMedia: result.data.socialMedia || {}
+    };
+
+    // Update stats
+    stats.leadsFound++;
+
+    // Save to storage
+    leads.unshift(lead);
+
+    // Keep only last 500 leads
+    if (leads.length > 500) {
+      leads.splice(500);
+    }
+
+    await chrome.storage.local.set({ leads, stats });
+
+    // Auto-send to integrations
+    await autoSendIntegrations(lead);
+
+    // Broadcast to popup
+    chrome.runtime.sendMessage({ type: 'NEW_LEAD', lead }).catch(() => {
+      // Popup not open - ignore
+    });
+
+    // Show notification
+    if (settings.notifyHotLeads) {
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: '../icons/icon128.png',
+        title: '📇 Contact Found in Image!',
+        message: `${lead.name}${lead.company ? ' - ' + lead.company : ''}`,
+        priority: 1
+      });
+    }
+
+    console.log('[LeadHunter] Image contact saved:', lead.name);
+    return { success: true, hasContactInfo: true, data: result.data, lead };
+
+  } catch (error) {
+    console.error('[LeadHunter] Image analysis error:', error);
     return { success: false, error: error.message };
   }
 }

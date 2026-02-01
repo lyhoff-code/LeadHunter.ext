@@ -143,6 +143,18 @@
       ],
       "js": ["content/business-scraper.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.facebook.com/*",
+        "https://*.linkedin.com/*",
+        "https://*.twitter.com/*",
+        "https://*.x.com/*",
+        "https://*.instagram.com/*",
+        "https://*.nextdoor.com/*"
+      ],
+      "js": ["content/image-scanner.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {

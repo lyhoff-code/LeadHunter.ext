@@ -116,6 +116,10 @@ export const translations = {
     settingsNotifications: 'Notifications',
     notifyHotLeads: 'Notify hot leads (8+)',
     soundAlert: 'Sound alert',
+    settingsImageScanning: 'Image Scanning (AI Vision)',
+    enableImageScanning: 'Scan images for contacts',
+    imageScanningDesc: 'Uses Gemini Vision to extract contact info from images (business cards, flyers, etc.)',
+    imageLeads: '📷 From Images',
     settingsCompetitors: 'Competitors to Detect',
     competitorsDesc: 'If they mention these, they are actively looking for a solution',
     settingsLanguage: 'Language',
@@ -194,6 +198,7 @@ export const translations = {
     tooltipScoreManual: 'MANUAL: Saved manually, no AI score',
     tooltipScoreProspect: 'PROSPECT: Business owner in target industry, no explicit pain signal yet',
     tooltipScraped: 'SCRAPED: Contact info extracted from business page automatically',
+    tooltipImage: 'IMAGE: Contact info extracted from image using AI Vision',
 
     // Tooltips - Dashboard
     tooltipLeadsToday: 'Leads captured in the last 24 hours',
@@ -317,6 +322,10 @@ export const translations = {
     settingsNotifications: 'Notificaciones',
     notifyHotLeads: 'Notificar leads calientes (8+)',
     soundAlert: 'Sonido de alerta',
+    settingsImageScanning: 'Escaneo de Imágenes (AI Vision)',
+    enableImageScanning: 'Escanear imágenes para contactos',
+    imageScanningDesc: 'Usa Gemini Vision para extraer info de contacto de imágenes (tarjetas, flyers, etc.)',
+    imageLeads: '📷 De Imágenes',
     settingsCompetitors: 'Competidores a Detectar',
     competitorsDesc: 'Si mencionan estos, están buscando solución activamente',
     settingsLanguage: 'Idioma',
@@ -395,6 +404,7 @@ export const translations = {
     tooltipScoreManual: 'MANUAL: Guardado manualmente, sin score de IA',
     tooltipScoreProspect: 'PROSPECTO: Dueño de negocio en industria objetivo, sin señal de dolor explícita',
     tooltipScraped: 'SCRAPEADO: Info de contacto extraída automáticamente de página de negocio',
+    tooltipImage: 'IMAGEN: Info de contacto extraída de imagen usando AI Vision',
 
     // Tooltips - Dashboard
     tooltipLeadsToday: 'Leads capturados en las últimas 24 horas',

@@ -320,13 +320,14 @@ class PopupController {
     const isManual = lead.leadType === 'manual';
     const isProspect = lead.leadType === 'prospect';
     const isScraped = lead.leadType === 'scraped';
-    const isPain = lead.leadType === 'pain' || (!isManual && !isProspect && !isScraped);
+    const isImage = lead.leadType === 'image';
+    const isPain = lead.leadType === 'pain' || (!isManual && !isProspect && !isScraped && !isImage);
 
     // Determine score class
     let scoreClass = 'cold';
     if (isManual) {
       scoreClass = 'manual';
-    } else if (isScraped) {
+    } else if (isScraped || isImage) {
       scoreClass = 'scraped';
     } else if (isProspect) {
       scoreClass = 'prospect';
@@ -343,6 +344,9 @@ class PopupController {
     if (isManual) {
       urgencyEmoji = '📌';
       urgencyTooltip = t('tooltipScoreManual', this.currentLanguage);
+    } else if (isImage) {
+      urgencyEmoji = '📷';
+      urgencyTooltip = t('tooltipImage', this.currentLanguage) || 'Contact extracted from image using AI Vision';
     } else if (isScraped) {
       urgencyEmoji = '🏢';
       urgencyTooltip = t('tooltipScraped', this.currentLanguage) || 'Scraped business - Contact info extracted from business page';
@@ -360,6 +364,9 @@ class PopupController {
     let preview;
     if (isManual) {
       preview = lead.title || lead.company || t('manuallySaved', this.currentLanguage);
+    } else if (isImage) {
+      const contactInfo = [lead.phone, lead.email, lead.website].filter(Boolean).join(' • ');
+      preview = contactInfo || lead.company || t('imageLeads', this.currentLanguage) || 'From Image';
     } else if (isScraped) {
       const contactInfo = [lead.phone, lead.email, lead.website].filter(Boolean).join(' • ');
       preview = contactInfo || lead.title || lead.category || t('scrapedLeads', this.currentLanguage);
@@ -371,6 +378,8 @@ class PopupController {
     let scoreDisplay;
     if (isManual) {
       scoreDisplay = '📌';
+    } else if (isImage) {
+      scoreDisplay = '📷';
     } else if (isScraped) {
       scoreDisplay = '🏢';
     } else if (isProspect) {
@@ -381,7 +390,9 @@ class PopupController {
 
     // Lead type badge
     let typeBadge = '';
-    if (isScraped) {
+    if (isImage) {
+      typeBadge = '<span class="lead-type-badge scraped">📷 IMAGE</span>';
+    } else if (isScraped) {
       typeBadge = '<span class="lead-type-badge scraped">SCRAPED</span>';
     } else if (isProspect) {
       typeBadge = '<span class="lead-type-badge prospect">PROSPECT</span>';
@@ -479,11 +490,13 @@ class PopupController {
     if (type === 'manual') {
       filtered = filtered.filter(l => l.leadType === 'manual');
     } else if (type === 'pain') {
-      filtered = filtered.filter(l => l.leadType === 'pain' || (!l.leadType && l.leadType !== 'prospect' && l.leadType !== 'manual' && l.leadType !== 'scraped'));
+      filtered = filtered.filter(l => l.leadType === 'pain' || (!l.leadType && l.leadType !== 'prospect' && l.leadType !== 'manual' && l.leadType !== 'scraped' && l.leadType !== 'image'));
     } else if (type === 'prospect') {
       filtered = filtered.filter(l => l.leadType === 'prospect');
     } else if (type === 'scraped') {
       filtered = filtered.filter(l => l.leadType === 'scraped');
+    } else if (type === 'image') {
+      filtered = filtered.filter(l => l.leadType === 'image');
     }
 
     const list = document.getElementById('allLeadsList');
@@ -951,6 +964,7 @@ class PopupController {
     document.getElementById('autoSendSheets').checked = this.settings.autoSendSheets || false;
     document.getElementById('autoFindEmail').checked = this.settings.autoFindEmail || false;
     document.getElementById('darkMode').checked = this.settings.darkMode || false;
+    document.getElementById('imageScanning').checked = this.settings.imageScanning !== false; // Default true
 
     // Apply dark mode
     this.applyDarkMode(this.settings.darkMode);
@@ -1026,7 +1040,8 @@ class PopupController {
       autoSendWebhook: document.getElementById('autoSendWebhook').checked,
       autoSendSheets: document.getElementById('autoSendSheets').checked,
       autoFindEmail: document.getElementById('autoFindEmail').checked,
-      darkMode: document.getElementById('darkMode').checked
+      darkMode: document.getElementById('darkMode').checked,
+      imageScanning: document.getElementById('imageScanning').checked
     };
 
     await chrome.storage.local.set({ settings: this.settings });
