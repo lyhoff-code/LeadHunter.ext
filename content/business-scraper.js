@@ -21,6 +21,7 @@
     if (host.includes('yelp.com')) return 'yelp';
     if (host.includes('google.com')) return 'google';
     if (host.includes('instagram.com')) return 'instagram';
+    if (host.includes('twitter.com') || host.includes('x.com')) return 'twitter';
     if (host.includes('thumbtack.com')) return 'thumbtack';
     if (host.includes('houzz.com')) return 'houzz';
     if (host.includes('alignable.com')) return 'alignable';
@@ -81,6 +82,15 @@
                (document.querySelector('a[href*="tel:"]') ||
                 document.querySelector('a[href*="mailto:"]') ||
                 document.querySelector('[data-testid="contact-options"]'));
+
+      case 'twitter':
+        // X/Twitter profiles - check if it's a profile page with potential business info
+        const isProfilePage = path.match(/^\/[^\/]+\/?$/) && !path.includes('/status/');
+        const hasTwitterContact = document.querySelector('a[href*="tel:"]') ||
+                                  document.querySelector('a[href*="mailto:"]') ||
+                                  document.querySelector('a[data-testid="UserUrl"]') ||
+                                  document.body.innerText.includes('@') && document.body.innerText.includes('.com');
+        return isProfilePage && hasTwitterContact;
 
       case 'thumbtack':
         return path.includes('/pro/') || path.includes('/profile/');
@@ -148,6 +158,8 @@
         return extractGoogleBusiness();
       case 'instagram':
         return extractInstagramBusiness();
+      case 'twitter':
+        return extractTwitterBusiness();
       case 'thumbtack':
         return extractThumbstackBusiness();
       case 'houzz':
@@ -174,13 +186,22 @@
     };
 
     // Business name - try multiple selectors
-    const nameEl = document.querySelector('h1') ||
-                   document.querySelector('[data-pagelet="ProfileActions"] h1') ||
-                   document.querySelector('span[dir="auto"] > h1') ||
-                   document.querySelector('[role="main"] h1');
-    if (nameEl) info.name = nameEl.textContent.trim();
+    const nameSelectors = [
+      'h1',
+      '[data-pagelet="ProfileActions"] h1',
+      'span[dir="auto"] > h1',
+      '[role="main"] h1',
+      'div[role="main"] span[dir="auto"]',
+      '[data-pagelet="page_title"] span'
+    ];
+    for (const sel of nameSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 1) {
+        info.name = el.textContent.trim();
+        break;
+      }
+    }
 
-    // Look in the About section or page info
     const pageText = document.body.innerText;
 
     // Phone - look for tel: links first (most reliable)
@@ -188,28 +209,35 @@
     if (phoneLink) {
       info.phone = phoneLink.href.replace('tel:', '').trim();
     } else {
-      // Fallback to regex patterns
-      // Look for international format first (+1 419-296-2751)
-      const phoneMatch = pageText.match(/[+]1[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) ||
-                         pageText.match(/\(\d{3}\)[-.\s]?\d{3}[-.\s]?\d{4}/) ||
-                         pageText.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/);
-      if (phoneMatch) info.phone = phoneMatch[0];
+      // Search in page text with multiple patterns
+      const phonePatterns = [
+        /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
+        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
+        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+      ];
+      for (const pattern of phonePatterns) {
+        const match = pageText.match(pattern);
+        if (match) {
+          info.phone = match[0];
+          break;
+        }
+      }
     }
 
-    // Email - look for mailto: links first (most reliable)
+    // Email - look for mailto: links first
     const emailLink = document.querySelector('a[href^="mailto:"]');
     if (emailLink) {
       info.email = emailLink.href.replace('mailto:', '').split('?')[0].trim();
     } else {
-      // Fallback to regex
+      // Search in page text
       const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
       if (emailMatch && !emailMatch[0].includes('facebook.com') && !emailMatch[0].includes('example')) {
         info.email = emailMatch[0];
       }
     }
 
-    // Website - look for external links
-    const websiteLinks = document.querySelectorAll('a[href*="l.facebook.com/l.php"]');
+    // Website - look for external links (Facebook redirects)
+    const websiteLinks = document.querySelectorAll('a[href*="l.facebook.com/l.php"], a[href*="lm.facebook.com"]');
     for (const link of websiteLinks) {
       try {
         const url = new URL(link.href);
@@ -221,37 +249,76 @@
       } catch (e) {}
     }
 
-    // Also look for direct links with .com/.net/.org that aren't Facebook
+    // Also check for direct external links
     if (!info.website) {
-      const allLinks = document.querySelectorAll('a[href*=".com"], a[href*=".net"], a[href*=".org"]');
+      const allLinks = document.querySelectorAll('a[href^="http"]');
       for (const link of allLinks) {
         const href = link.href;
+        const text = link.textContent.trim();
         if (href && !href.includes('facebook.com') && !href.includes('google.com') &&
-            !href.includes('instagram.com') && link.textContent.includes('.')) {
+            !href.includes('instagram.com') && !href.includes('twitter.com')) {
           // Check if link text looks like a domain
-          const text = link.textContent.trim();
-          if (text.match(/^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}$/)) {
+          if (text.match(/^[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$/)) {
             info.website = text.startsWith('http') ? text : 'https://' + text;
+            break;
+          }
+          // Or if the href itself is a simple domain
+          if (href.match(/^https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}\/?$/)) {
+            info.website = href;
             break;
           }
         }
       }
     }
 
-    // Address - look for location links or text
+    // Address - look for location links or text patterns
     const addressLink = document.querySelector('a[href*="maps"], a[href*="place"]');
     if (addressLink) {
       info.address = addressLink.textContent.trim();
-    } else {
-      // Look for address patterns in text
-      const addressMatch = pageText.match(/\d+\s+[A-Za-z]+\s+(St|Street|Rd|Road|Ave|Avenue|Blvd|Dr|Drive|Ln|Lane|Way|Ct|Court)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}/i);
-      if (addressMatch) info.address = addressMatch[0];
+    }
+
+    // Try to find address in the sidebar/about section
+    if (!info.address) {
+      const addressPatterns = [
+        /\d+\s+[A-Za-z]+\s+(St|Street|Rd|Road|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Ct|Court|Pkwy|Parkway)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}/i,
+        /\d+\s+[A-Za-z\s]+,\s*[A-Za-z\s]+,\s*[A-Z]{2}\s*\d{5}/i
+      ];
+      for (const pattern of addressPatterns) {
+        const match = pageText.match(pattern);
+        if (match) {
+          info.address = match[0];
+          break;
+        }
+      }
     }
 
     // Category
-    const categoryEl = document.querySelector('a[href*="/pages/category/"]') ||
-                       document.querySelector('[data-pagelet="ProfileTilesFeed"] span');
-    if (categoryEl) info.category = categoryEl.textContent.trim();
+    const categorySelectors = [
+      'a[href*="/pages/category/"]',
+      '[data-pagelet="ProfileTilesFeed"] span',
+      'div[role="main"] a[role="link"][tabindex="0"]'
+    ];
+    for (const sel of categorySelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 2 && el.textContent.trim().length < 50) {
+        const text = el.textContent.trim();
+        // Skip if it looks like a name or other content
+        if (!text.includes('@') && !text.match(/^\d/)) {
+          info.category = text;
+          break;
+        }
+      }
+    }
+
+    // Description - from About section
+    const aboutSection = document.querySelector('[data-pagelet="ProfileTilesFeed"]') ||
+                         document.querySelector('div[role="main"] div[class*="about"]');
+    if (aboutSection) {
+      const descText = aboutSection.textContent.substring(0, 500);
+      if (descText.length > 50) {
+        info.description = descText.trim();
+      }
+    }
 
     console.log('[Lead Hunter] Extracted Facebook business:', info);
     return info;
@@ -272,40 +339,119 @@
       employees: ''
     };
 
-    // Company name
-    const nameEl = document.querySelector('h1.org-top-card-summary__title') ||
-                   document.querySelector('h1[class*="org-top-card"]') ||
-                   document.querySelector('h1');
-    if (nameEl) info.name = nameEl.textContent.trim();
+    // Company name - multiple selectors for different LinkedIn layouts
+    const nameSelectors = [
+      'h1.org-top-card-summary__title',
+      'h1[class*="org-top-card"]',
+      'h1.ember-view',
+      '.org-top-card-summary__title',
+      'h1 span[dir="ltr"]',
+      'h1'
+    ];
+    for (const sel of nameSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim() && el.textContent.trim().length > 1) {
+        info.name = el.textContent.trim();
+        break;
+      }
+    }
 
-    // Website
-    const websiteEl = document.querySelector('a[data-control-name="top_card_website"]') ||
-                      document.querySelector('a[href*="company-website"]') ||
-                      document.querySelector('.org-top-card-primary-actions a[href^="http"]');
-    if (websiteEl) info.website = websiteEl.href;
+    // Website - multiple selectors
+    const websiteSelectors = [
+      'a[data-control-name="top_card_website"]',
+      'a[href*="company-website"]',
+      '.org-top-card-primary-actions a[href^="http"]',
+      'a[data-tracking-control-name*="website"]',
+      '.org-page-details__definition-text a[href^="http"]'
+    ];
+    for (const sel of websiteSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.href && !el.href.includes('linkedin.com')) {
+        info.website = el.href;
+        break;
+      }
+    }
+
+    // Also search for website in page text
+    if (!info.website) {
+      const links = document.querySelectorAll('a[href^="http"]');
+      for (const link of links) {
+        const href = link.href;
+        if (href && !href.includes('linkedin.com') && !href.includes('google.com') &&
+            !href.includes('facebook.com') && !href.includes('twitter.com')) {
+          const text = link.textContent.trim();
+          if (text.match(/^[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$/)) {
+            info.website = href;
+            break;
+          }
+        }
+      }
+    }
 
     // Industry/Category
-    const industryEl = document.querySelector('.org-top-card-summary-info-list__info-item') ||
-                       document.querySelector('[class*="org-top-card"] .text-body-small');
-    if (industryEl) info.category = industryEl.textContent.trim();
+    const industrySelectors = [
+      '.org-top-card-summary-info-list__info-item',
+      '[class*="org-top-card"] .text-body-small',
+      '.org-page-details__definition-text',
+      '.org-about-company-module__description'
+    ];
+    for (const sel of industrySelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim()) {
+        info.category = el.textContent.trim().split('\n')[0].trim();
+        break;
+      }
+    }
 
     // Description
-    const descEl = document.querySelector('.org-top-card-summary__tagline') ||
-                   document.querySelector('p[class*="org-about"]');
-    if (descEl) info.description = descEl.textContent.trim();
+    const descSelectors = [
+      '.org-top-card-summary__tagline',
+      'p[class*="org-about"]',
+      '.org-about-us-organization-description__text',
+      '.break-words'
+    ];
+    for (const sel of descSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 20) {
+        info.description = el.textContent.trim().substring(0, 500);
+        break;
+      }
+    }
 
-    // Company size
-    const sizeEl = document.querySelector('.org-about-company-module__company-size-definition-text');
+    // Company size / employees
+    const sizeEl = document.querySelector('.org-about-company-module__company-size-definition-text') ||
+                   document.querySelector('[class*="employee"]');
     if (sizeEl) info.employees = sizeEl.textContent.trim();
 
-    // Look for contact info in the page
+    // Address/Location
+    const locationEl = document.querySelector('.org-top-card-summary-info-list__info-item:nth-child(2)') ||
+                       document.querySelector('[class*="headquarters"]');
+    if (locationEl) info.address = locationEl.textContent.trim();
+
+    // Phone and Email from page text
     const pageText = document.body.innerText;
+
+    // Phone patterns
+    const phonePatterns = [
+      /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
+      /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
+      /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+    ];
+    for (const pattern of phonePatterns) {
+      const match = pageText.match(pattern);
+      if (match) {
+        info.phone = match[0];
+        break;
+      }
+    }
+
+    // Email
     const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (emailMatch) info.email = emailMatch[0];
+    if (emailMatch && !emailMatch[0].includes('linkedin.com') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
 
-    const phoneMatch = pageText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-    if (phoneMatch) info.phone = phoneMatch[0];
-
+    console.log('[Lead Hunter] Extracted LinkedIn company:', info);
     return info;
   }
 
@@ -524,33 +670,238 @@
       phone: '',
       website: '',
       category: '',
+      description: '',
+      address: ''
+    };
+
+    // Username/Name - try multiple selectors
+    const nameSelectors = [
+      'header h2',
+      'header h1',
+      'section h1',
+      'h2._aacl',
+      'h1._aacl',
+      'span._aacl._aaco._aacu._aacx._aad6._aade'
+    ];
+    for (const sel of nameSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 1) {
+        info.name = el.textContent.trim();
+        break;
+      }
+    }
+
+    // Bio/Description - try multiple selectors
+    const bioSelectors = [
+      'div[class*="biography"]',
+      'span[class*="-webProfileBio"]',
+      'header section > div > span',
+      '._aacl._aaco._aacu._aacx._aad6._aade'
+    ];
+    for (const sel of bioSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 10) {
+        info.description = el.textContent.trim();
+        break;
+      }
+    }
+
+    // External link in bio
+    const linkSelectors = [
+      'a[class*="profile-link"]',
+      'a[href*="l.instagram.com"]',
+      'header a[href^="http"]',
+      'div[role="link"] a[href^="http"]'
+    ];
+    for (const sel of linkSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.href && !el.href.includes('instagram.com')) {
+        // Extract actual URL from Instagram redirect
+        if (el.href.includes('l.instagram.com')) {
+          try {
+            const url = new URL(el.href);
+            const actualUrl = url.searchParams.get('u');
+            if (actualUrl) {
+              info.website = decodeURIComponent(actualUrl);
+              break;
+            }
+          } catch (e) {}
+        } else {
+          info.website = el.href;
+          break;
+        }
+      }
+    }
+
+    // Get page text for searching
+    const pageText = document.body.innerText;
+
+    // Contact button and action buttons
+    const contactSelectors = [
+      '[data-testid="contact-options"]',
+      'div[role="button"]',
+      'a[href^="tel:"]',
+      'a[href^="mailto:"]'
+    ];
+
+    // Phone
+    const phoneLink = document.querySelector('a[href^="tel:"]');
+    if (phoneLink) {
+      info.phone = phoneLink.href.replace('tel:', '').trim();
+    } else {
+      // Search in page text
+      const phonePatterns = [
+        /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
+        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
+        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+      ];
+      for (const pattern of phonePatterns) {
+        const match = pageText.match(pattern);
+        if (match) {
+          info.phone = match[0];
+          break;
+        }
+      }
+    }
+
+    // Email
+    const emailLink = document.querySelector('a[href^="mailto:"]');
+    if (emailLink) {
+      info.email = emailLink.href.replace('mailto:', '').split('?')[0].trim();
+    } else {
+      const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (emailMatch && !emailMatch[0].includes('instagram.com') && !emailMatch[0].includes('example')) {
+        info.email = emailMatch[0];
+      }
+    }
+
+    // Category (from business profile)
+    const categoryEl = document.querySelector('div[class*="category"]') ||
+                       document.querySelector('a[href*="/explore/locations/"]');
+    if (categoryEl) {
+      info.category = categoryEl.textContent.trim();
+    }
+
+    // Address (from business profile)
+    const addressEl = document.querySelector('a[href*="maps"]') ||
+                      document.querySelector('div[class*="address"]');
+    if (addressEl) {
+      info.address = addressEl.textContent.trim();
+    }
+
+    console.log('[Lead Hunter] Extracted Instagram business:', info);
+    return info;
+  }
+
+  /**
+   * Extract from X/Twitter Profile
+   */
+  function extractTwitterBusiness() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: '',
+      category: '',
       description: ''
     };
 
-    // Username/Name
-    const nameEl = document.querySelector('h2') || document.querySelector('h1');
-    if (nameEl) info.name = nameEl.textContent.trim();
-
-    // Bio/Description
-    const bioEl = document.querySelector('div[class*="biography"]') ||
-                  document.querySelector('span[class*="-webProfileBio"]');
-    if (bioEl) info.description = bioEl.textContent.trim();
-
-    // External link
-    const linkEl = document.querySelector('a[class*="profile-link"]') ||
-                   document.querySelector('a[href*="l.instagram.com"]');
-    if (linkEl) info.website = linkEl.href;
-
-    // Contact button info
-    const contactBtn = document.querySelector('[data-testid="contact-options"]');
-    if (contactBtn) {
-      const pageText = contactBtn.parentElement?.innerText || '';
-      const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-      if (emailMatch) info.email = emailMatch[0];
-      const phoneMatch = pageText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-      if (phoneMatch) info.phone = phoneMatch[0];
+    // Name - display name and username
+    const nameSelectors = [
+      '[data-testid="UserName"] span:first-child',
+      'h1[role="heading"] span',
+      'div[data-testid="UserName"] div span',
+      'h2[role="heading"] span'
+    ];
+    for (const sel of nameSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 1) {
+        info.name = el.textContent.trim();
+        break;
+      }
     }
 
+    // Bio/Description
+    const bioSelectors = [
+      '[data-testid="UserDescription"]',
+      'div[data-testid="UserDescription"] span',
+      '[data-testid="UserBio"]'
+    ];
+    for (const sel of bioSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 5) {
+        info.description = el.textContent.trim();
+        break;
+      }
+    }
+
+    // Website from profile
+    const websiteSelectors = [
+      'a[data-testid="UserUrl"]',
+      'a[href*="t.co"]',
+      '[data-testid="UserProfileHeader_Items"] a[href^="http"]'
+    ];
+    for (const sel of websiteSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        // Twitter uses t.co redirects, try to get the display text
+        const displayText = el.textContent.trim();
+        if (displayText && displayText.includes('.') && !displayText.includes('twitter') && !displayText.includes('x.com')) {
+          info.website = displayText.startsWith('http') ? displayText : 'https://' + displayText;
+          break;
+        } else if (el.href && !el.href.includes('twitter.com') && !el.href.includes('x.com')) {
+          info.website = el.href;
+          break;
+        }
+      }
+    }
+
+    // Location
+    const locationEl = document.querySelector('[data-testid="UserLocation"]') ||
+                       document.querySelector('[data-testid="UserProfileHeader_Items"] span[data-testid="UserLocation"]');
+    if (locationEl) {
+      info.address = locationEl.textContent.trim();
+    }
+
+    // Get page text for searching phone/email
+    const pageText = document.body.innerText;
+
+    // Phone patterns
+    const phonePatterns = [
+      /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
+      /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
+      /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+    ];
+    for (const pattern of phonePatterns) {
+      const match = pageText.match(pattern);
+      if (match) {
+        info.phone = match[0];
+        break;
+      }
+    }
+
+    // Email
+    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    if (emailMatch && !emailMatch[0].includes('twitter.com') && !emailMatch[0].includes('x.com') && !emailMatch[0].includes('example')) {
+      info.email = emailMatch[0];
+    }
+
+    // Category from bio (heuristic)
+    if (info.description) {
+      const categoryKeywords = ['plumber', 'electrician', 'contractor', 'lawyer', 'attorney', 'dentist',
+                                'doctor', 'realtor', 'agent', 'consultant', 'designer', 'developer',
+                                'photographer', 'owner', 'ceo', 'founder', 'manager'];
+      const descLower = info.description.toLowerCase();
+      for (const keyword of categoryKeywords) {
+        if (descLower.includes(keyword)) {
+          info.category = keyword.charAt(0).toUpperCase() + keyword.slice(1);
+          break;
+        }
+      }
+    }
+
+    console.log('[Lead Hunter] Extracted Twitter/X business:', info);
     return info;
   }
 
