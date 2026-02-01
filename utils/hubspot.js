@@ -13,26 +13,13 @@ export async function sendToHubSpot(lead, apiKey) {
     throw new Error('HubSpot API key not configured');
   }
 
-  // Map lead data to HubSpot contact properties
+  // Map lead data to HubSpot contact properties (only standard properties)
   const properties = {
-    // Standard properties
     firstname: extractFirstName(lead.name),
-    lastname: extractLastName(lead.name),
-    jobtitle: lead.title || '',
-
-    // Custom properties (need to be created in HubSpot first)
-    // Using notes and description for custom data
-    hs_lead_status: lead.score >= 8 ? 'NEW' : 'OPEN',
-
-    // Store lead data in notes
-    notes_last_contacted: '',
-    notes_last_activity: new Date().toISOString(),
-
-    // Additional data in message field or custom props
-    message: formatLeadMessage(lead)
+    lastname: extractLastName(lead.name)
   };
 
-  // Add email if available
+  // Add email if available (important for HubSpot deduplication)
   if (lead.email) {
     properties.email = lead.email;
   }
@@ -43,30 +30,32 @@ export async function sendToHubSpot(lead, apiKey) {
   }
 
   // Add company name if available
-  if (lead.company) {
-    properties.company = lead.company;
+  if (lead.company || lead.name) {
+    properties.company = lead.company || lead.name;
   }
 
   // Add website if available
   if (lead.website) {
     properties.website = lead.website;
-  } else if (lead.profileUrl) {
-    // If we have a profile URL that looks like LinkedIn, try to add it
-    if (lead.profileUrl.includes('linkedin.com')) {
-      properties.hs_linkedinid = lead.profileUrl;
-    }
-    // Store profile URL in website field as fallback
+  } else if (lead.profileUrl && !lead.profileUrl.includes('facebook.com') && !lead.profileUrl.includes('linkedin.com')) {
     properties.website = lead.profileUrl;
   }
 
-  // Add address if available
-  if (lead.address) {
-    properties.address = lead.address;
+  // Add job title if available
+  if (lead.title) {
+    properties.jobtitle = lead.title;
   }
 
-  // Add industry if available
-  if (lead.industry && lead.industry !== 'unknown') {
-    properties.industry = lead.industry;
+  // Add lifecycle stage
+  properties.lifecyclestage = 'lead';
+
+  // Add hs_lead_status
+  if (lead.score >= 8) {
+    properties.hs_lead_status = 'NEW';
+  } else if (lead.leadType === 'pain') {
+    properties.hs_lead_status = 'OPEN';
+  } else {
+    properties.hs_lead_status = 'OPEN';
   }
 
   try {
