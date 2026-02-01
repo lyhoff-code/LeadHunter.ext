@@ -204,7 +204,41 @@ export const translations = {
     tooltipLeadsToday: 'Leads captured in the last 24 hours',
     tooltipLeadsTotal: 'Total leads in your database',
     tooltipHotLeads: 'Leads with score 8 or higher (high intent)',
-    tooltipScanned: 'Comments analyzed by the extension'
+    tooltipScanned: 'Comments analyzed by the extension',
+
+    // Notifications
+    notifLeadDetected: 'Lead Detected!',
+    notifContactFoundImage: 'Contact Found in Image!',
+    notifIn: 'on',
+
+    // Gemini Prompt
+    geminiPromptRole: 'You are a B2B sales expert analyzing social media comments to find potential leads.',
+    geminiPromptService: 'The service we sell: AI Receptionist / Virtual Receptionist for small businesses',
+    geminiPromptAnalyze: 'Analyze the following comment and determine if it is a potential lead:',
+    geminiPromptComment: 'COMMENT:',
+    geminiPromptCriteria: 'EVALUATION CRITERIA:',
+    geminiPromptCriteria1: 'Does it express pain related to: missed calls, appointments, reception, customer service, communication?',
+    geminiPromptCriteria2: 'Does it appear to be a business owner or manager?',
+    geminiPromptCriteria3: 'Does it mention competitors? This indicates they are actively looking for a solution.',
+    geminiPromptCriteria4: 'Does the industry match our target?',
+    geminiPromptCriteria5: 'How frustrated or urgent does the message sound?',
+    geminiPromptRespondJson: 'RESPOND IN JSON with this exact format:',
+    geminiPromptScoreDesc: 'number from 1-10, where 10 is perfect lead',
+    geminiPromptPainPointsDesc: 'list of specific pain points detected',
+    geminiPromptIndustryDesc: 'detected industry or unknown',
+    geminiPromptReasoningDesc: 'brief explanation of why this score',
+    geminiPromptScoringGuide: 'SCORING GUIDE:',
+    geminiPromptScore910: '9-10: Business owner with clear and urgent pain, mentions competitors or looking for solution',
+    geminiPromptScore78: '7-8: Clear pain related to calls/appointments, likely business owner',
+    geminiPromptScore56: '5-6: Indicates communication issues but incomplete context',
+    geminiPromptScore34: '3-4: Mentions related topics but no clear pain',
+    geminiPromptScore12: '1-2: Not a relevant lead',
+    geminiPromptUrgencyGuide: 'URGENCY GUIDE:',
+    geminiPromptUrgencyCritical: 'critical: Words like "urgent", "desperate", "help", "right now", multiple exclamation marks',
+    geminiPromptUrgencyHigh: 'high: "today", "this week", "frustrated", "fed up", "tired of"',
+    geminiPromptUrgencyMedium: 'medium: "I need", "looking for", "problem"',
+    geminiPromptUrgencyLow: 'low: Casual mentions without apparent urgency',
+    geminiPromptConservative: 'Be conservative. Only high scores for genuine leads.'
   },
 
   es: {
@@ -410,7 +444,41 @@ export const translations = {
     tooltipLeadsToday: 'Leads capturados en las últimas 24 horas',
     tooltipLeadsTotal: 'Total de leads en tu base de datos',
     tooltipHotLeads: 'Leads con score 8 o más (alta intención)',
-    tooltipScanned: 'Comentarios analizados por la extensión'
+    tooltipScanned: 'Comentarios analizados por la extensión',
+
+    // Notifications
+    notifLeadDetected: '¡Lead Detectado!',
+    notifContactFoundImage: '¡Contacto Encontrado en Imagen!',
+    notifIn: 'en',
+
+    // Gemini Prompt
+    geminiPromptRole: 'Eres un experto en ventas B2B analizando comentarios de redes sociales para encontrar leads potenciales.',
+    geminiPromptService: 'El servicio que vendemos: AI Receptionist / Virtual Receptionist para pequeños negocios',
+    geminiPromptAnalyze: 'Analiza el siguiente comentario y determina si es un lead potencial:',
+    geminiPromptComment: 'COMENTARIO:',
+    geminiPromptCriteria: 'CRITERIOS DE EVALUACIÓN:',
+    geminiPromptCriteria1: '¿Expresa dolor relacionado con: llamadas perdidas, citas, recepción, atención al cliente, comunicación?',
+    geminiPromptCriteria2: '¿Parece ser dueño o gerente de un negocio?',
+    geminiPromptCriteria3: '¿Menciona competidores? Esto indica que busca solución activamente.',
+    geminiPromptCriteria4: '¿La industria coincide con nuestro target?',
+    geminiPromptCriteria5: '¿Qué tan frustrado o urgente suena el mensaje?',
+    geminiPromptRespondJson: 'RESPONDE EN JSON con este formato exacto:',
+    geminiPromptScoreDesc: 'número del 1-10, donde 10 es lead perfecto',
+    geminiPromptPainPointsDesc: 'lista de dolores específicos detectados',
+    geminiPromptIndustryDesc: 'industria detectada o unknown',
+    geminiPromptReasoningDesc: 'explicación breve de por qué este score',
+    geminiPromptScoringGuide: 'GUÍA DE SCORING:',
+    geminiPromptScore910: '9-10: Dueño de negocio con dolor claro y urgente, menciona competidores o busca solución',
+    geminiPromptScore78: '7-8: Dolor claro relacionado con llamadas/citas, probable dueño de negocio',
+    geminiPromptScore56: '5-6: Indica problemas de comunicación pero contexto incompleto',
+    geminiPromptScore34: '3-4: Menciona temas relacionados pero sin dolor claro',
+    geminiPromptScore12: '1-2: No es lead relevante',
+    geminiPromptUrgencyGuide: 'GUÍA DE URGENCIA:',
+    geminiPromptUrgencyCritical: 'critical: Palabras como "urgente", "desesperado", "ayuda", "ahora mismo", múltiples signos de exclamación',
+    geminiPromptUrgencyHigh: 'high: "hoy", "esta semana", "frustrado", "harto", "cansado de"',
+    geminiPromptUrgencyMedium: 'medium: "necesito", "buscando", "problema"',
+    geminiPromptUrgencyLow: 'low: Menciones casuales sin urgencia aparente',
+    geminiPromptConservative: 'Sé conservador. Solo scores altos para leads genuinos.'
   }
 };
 

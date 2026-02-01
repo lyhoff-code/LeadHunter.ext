@@ -10,6 +10,12 @@ import { findEmail, checkCredits } from '../utils/email-finder.js';
 import { detectUrgencyFromText, calculateUrgencyDecay } from '../utils/urgency.js';
 import { checkPreviousContact, markProfileContacted, logInteraction, addInteraction } from '../utils/interaction-history.js';
 import { analyzeImageWithGemini, isValidImageUrl } from '../utils/gemini-vision.js';
+import { translations } from '../utils/i18n.js';
+
+// Helper to get translation
+function t(key, lang = 'en') {
+  return translations[lang]?.[key] || translations.en[key] || key;
+}
 
 // State
 let settings = {};
@@ -817,10 +823,11 @@ async function handleImageAnalysis(imageUrl, context = {}) {
 
     // Show notification
     if (settings.notifyHotLeads) {
+      const lang = settings.language || 'en';
       chrome.notifications.create({
         type: 'basic',
         iconUrl: '../icons/icon128.png',
-        title: '📇 Contact Found in Image!',
+        title: `📇 ${t('notifContactFoundImage', lang)}`,
         message: `${lead.name}${lead.company ? ' - ' + lead.company : ''}`,
         priority: 1
       });
@@ -906,6 +913,7 @@ async function handleFindEmail(lead) {
 
 // Send notification
 async function sendNotification(lead) {
+  const lang = settings.language || 'en';
   const urgencyEmoji = {
     critical: '🔥🔥',
     high: '🔥',
@@ -916,8 +924,8 @@ async function sendNotification(lead) {
   await chrome.notifications.create({
     type: 'basic',
     iconUrl: '../icons/icon128.png',
-    title: `${urgencyEmoji[lead.urgencyLevel] || '⚡'} Lead Detectado! (${lead.score}/10)`,
-    message: `${lead.name} en ${lead.platform}: "${lead.comment.substring(0, 50)}..."`,
+    title: `${urgencyEmoji[lead.urgencyLevel] || '⚡'} ${t('notifLeadDetected', lang)} (${lead.score}/10)`,
+    message: `${lead.name} ${t('notifIn', lang)} ${lead.platform}: "${lead.comment.substring(0, 50)}..."`,
     priority: 2
   });
 }

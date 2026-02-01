@@ -1,6 +1,13 @@
 // Lead Hunter AI - Gemini API Integration
 
+import { translations } from './i18n.js';
+
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+// Helper to get translation
+function t(key, lang = 'en') {
+  return translations[lang]?.[key] || translations.en[key] || key;
+}
 
 /**
  * Analyze a comment using Gemini AI
@@ -57,56 +64,57 @@ export async function analyzeWithGemini(comment, settings) {
 }
 
 /**
- * Build the analysis prompt
+ * Build the analysis prompt in the selected language
  */
 function buildAnalysisPrompt(comment, settings) {
+  const lang = settings.language || 'en';
   const industries = settings.industries?.join(', ') || 'small businesses';
   const competitors = settings.competitors?.split('\n').filter(c => c.trim()).join(', ') || 'Ruby, Smith.ai';
 
-  return `Eres un experto en ventas B2B analizando comentarios de redes sociales para encontrar leads potenciales.
+  return `${t('geminiPromptRole', lang)}
 
-El servicio que vendemos: AI Receptionist / Virtual Receptionist para pequeños negocios (${industries}).
+${t('geminiPromptService', lang)} (${industries}).
 
-Analiza el siguiente comentario y determina si es un lead potencial:
+${t('geminiPromptAnalyze', lang)}
 
-COMENTARIO:
+${t('geminiPromptComment', lang)}
 "${comment}"
 
-CRITERIOS DE EVALUACIÓN:
-1. ¿Expresa dolor relacionado con: llamadas perdidas, citas, recepción, atención al cliente, comunicación?
-2. ¿Parece ser dueño o gerente de un negocio?
-3. ¿Menciona competidores (${competitors})? Esto indica que busca solución activamente.
-4. ¿La industria coincide con nuestro target?
-5. ¿Qué tan frustrado o urgente suena el mensaje?
+${t('geminiPromptCriteria', lang)}
+1. ${t('geminiPromptCriteria1', lang)}
+2. ${t('geminiPromptCriteria2', lang)}
+3. ${t('geminiPromptCriteria3', lang)} (${competitors})
+4. ${t('geminiPromptCriteria4', lang)}
+5. ${t('geminiPromptCriteria5', lang)}
 
-RESPONDE EN JSON con este formato exacto:
+${t('geminiPromptRespondJson', lang)}
 {
-  "score": <número del 1-10, donde 10 es lead perfecto>,
+  "score": <${t('geminiPromptScoreDesc', lang)}>,
   "isBusinessOwner": <boolean>,
   "mentionsCompetitor": <boolean>,
-  "painPoints": [<lista de dolores específicos detectados>],
-  "industry": "<industria detectada o 'unknown'>",
-  "reasoning": "<explicación breve de por qué este score en español>",
+  "painPoints": [<${t('geminiPromptPainPointsDesc', lang)}>],
+  "industry": "<${t('geminiPromptIndustryDesc', lang)}>",
+  "reasoning": "<${t('geminiPromptReasoningDesc', lang)}>",
   "urgency": "<critical|high|medium|low>",
-  "frustrationLevel": <1-10 qué tan frustrado suena>,
+  "frustrationLevel": <1-10>,
   "buyingIntent": "<none|researching|comparing|ready_to_buy>",
-  "suggestedApproach": "<cold|warm|hot - cómo debería ser el approach>"
+  "suggestedApproach": "<cold|warm|hot>"
 }
 
-SCORING GUIDE:
-- 9-10: Dueño de negocio con dolor claro y urgente, menciona competidores o busca solución
-- 7-8: Dolor claro relacionado con llamadas/citas, probable dueño de negocio
-- 5-6: Indica problemas de comunicación pero contexto incompleto
-- 3-4: Menciona temas relacionados pero sin dolor claro
-- 1-2: No es lead relevante
+${t('geminiPromptScoringGuide', lang)}
+- ${t('geminiPromptScore910', lang)}
+- ${t('geminiPromptScore78', lang)}
+- ${t('geminiPromptScore56', lang)}
+- ${t('geminiPromptScore34', lang)}
+- ${t('geminiPromptScore12', lang)}
 
-URGENCY GUIDE:
-- critical: Palabras como "urgente", "desesperado", "ayuda", "ahora mismo", múltiples signos de exclamación
-- high: "hoy", "esta semana", "frustrado", "harto", "cansado de"
-- medium: "necesito", "buscando", "problema"
-- low: Menciones casuales sin urgencia aparente
+${t('geminiPromptUrgencyGuide', lang)}
+- ${t('geminiPromptUrgencyCritical', lang)}
+- ${t('geminiPromptUrgencyHigh', lang)}
+- ${t('geminiPromptUrgencyMedium', lang)}
+- ${t('geminiPromptUrgencyLow', lang)}
 
-Sé conservador. Solo scores altos para leads genuinos.`;
+${t('geminiPromptConservative', lang)}`;
 }
 
 /**
