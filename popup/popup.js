@@ -23,6 +23,7 @@ class PopupController {
     this.renderLeadsList();
     this.loadSettings();
     this.loadAppsScriptCode();
+    this.setupRippleEffects();
   }
 
   /**
@@ -270,10 +271,11 @@ class PopupController {
     const leadsToday = this.leads.filter(l => new Date(l.timestamp).toDateString() === today).length;
     const hotLeads = this.leads.filter(l => l.score >= 8).length;
 
-    document.getElementById('leadsToday').textContent = leadsToday;
-    document.getElementById('leadsTotal').textContent = this.leads.length;
-    document.getElementById('hotLeads').textContent = hotLeads;
-    document.getElementById('scannedComments').textContent = this.stats.scanned || 0;
+    // Animate the numbers for better visual feedback
+    this.animateNumber(document.getElementById('leadsToday'), leadsToday);
+    this.animateNumber(document.getElementById('leadsTotal'), this.leads.length);
+    this.animateNumber(document.getElementById('hotLeads'), hotLeads);
+    this.animateNumber(document.getElementById('scannedComments'), this.stats.scanned || 0);
 
     // Urgency counts
     const urgencyCounts = { critical: 0, high: 0, medium: 0, low: 0 };
@@ -818,7 +820,7 @@ class PopupController {
   async testWebhook() {
     const url = document.getElementById('webhookUrl').value;
     if (!url) {
-      alert(t('enterWebhookFirst', this.currentLanguage));
+      this.showToast(t('enterWebhookFirst', this.currentLanguage), 'error');
       return;
     }
 
@@ -903,7 +905,7 @@ class PopupController {
 
   exportLeads() {
     if (this.leads.length === 0) {
-      alert(t('noLeadsToExport', this.currentLanguage));
+      this.showToast(t('noLeadsToExport', this.currentLanguage), 'error');
       return;
     }
 
@@ -1038,11 +1040,14 @@ class PopupController {
     const btn = document.getElementById('saveSettings');
     const originalText = btn.textContent;
     btn.textContent = t('saved', this.currentLanguage);
-    btn.style.background = '#10b981';
+    btn.classList.add('loading');
+
+    // Show success toast
+    this.showToast(t('saved', this.currentLanguage), 'success');
 
     setTimeout(() => {
       btn.textContent = t('saveSettings', this.currentLanguage);
-      btn.style.background = '';
+      btn.classList.remove('loading');
     }, 2000);
   }
 
@@ -1067,6 +1072,94 @@ class PopupController {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  /**
+   * Show toast notification
+   * @param {string} message - Message to display
+   * @param {string} type - 'success', 'error', or 'info'
+   * @param {number} duration - Duration in ms (default 3000)
+   */
+  showToast(message, type = 'success', duration = 3000) {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
+      <span>${message}</span>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'fadeIn 0.3s ease reverse';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
+  }
+
+  /**
+   * Add ripple effect to element
+   * @param {HTMLElement} element - Element to add ripple to
+   * @param {Event} event - Click event
+   */
+  createRipple(element, event) {
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+
+    const rect = element.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    const x = event.clientX - rect.left - size / 2;
+    const y = event.clientY - rect.top - size / 2;
+
+    ripple.style.width = ripple.style.height = `${size}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+
+    element.appendChild(ripple);
+
+    ripple.addEventListener('animationend', () => ripple.remove());
+  }
+
+  /**
+   * Animate number counting up
+   * @param {HTMLElement} element - Element containing the number
+   * @param {number} target - Target number
+   * @param {number} duration - Animation duration in ms
+   */
+  animateNumber(element, target, duration = 500) {
+    const start = parseInt(element.textContent) || 0;
+    const increment = (target - start) / (duration / 16);
+    let current = start;
+
+    const animate = () => {
+      current += increment;
+      if ((increment > 0 && current >= target) || (increment < 0 && current <= target)) {
+        element.textContent = target;
+        element.classList.add('animated');
+        setTimeout(() => element.classList.remove('animated'), 500);
+      } else {
+        element.textContent = Math.round(current);
+        requestAnimationFrame(animate);
+      }
+    };
+
+    if (start !== target) {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  /**
+   * Setup ripple effects on all buttons
+   */
+  setupRippleEffects() {
+    document.querySelectorAll('.btn, .tab').forEach(element => {
+      element.addEventListener('click', (e) => this.createRipple(element, e));
+    });
   }
 }
 
