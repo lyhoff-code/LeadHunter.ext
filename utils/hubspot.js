@@ -13,6 +13,14 @@ export async function sendToHubSpot(lead, apiKey) {
     throw new Error('HubSpot API key not configured');
   }
 
+  // First, check if contact already exists (by email, phone, or name)
+  const existingContact = await findExistingContact(lead, apiKey);
+
+  if (existingContact) {
+    console.log('[HubSpot] Contact already exists, updating with new data...');
+    return await updateContact(existingContact.id, lead, apiKey, existingContact.properties);
+  }
+
   // Map lead data to HubSpot contact properties (only standard properties)
   const properties = {
     firstname: extractFirstName(lead.name),
@@ -59,7 +67,7 @@ export async function sendToHubSpot(lead, apiKey) {
   }
 
   try {
-    // First, try to create the contact
+    // Create the contact
     const response = await fetch(`${HUBSPOT_API_URL}/crm/v3/objects/contacts`, {
       method: 'POST',
       headers: {
@@ -78,12 +86,13 @@ export async function sendToHubSpot(lead, apiKey) {
       return data;
     }
 
-    // If contact exists (409 conflict), update instead
+    // If contact exists (409 conflict), update instead (fallback)
     if (response.status === 409) {
       const errorData = await response.json();
       const existingId = errorData.message?.match(/ID: (\d+)/)?.[1];
 
       if (existingId) {
+        console.log('[HubSpot] Conflict detected, updating existing contact...');
         return await updateContact(existingId, lead, apiKey);
       }
     }
@@ -97,39 +106,58 @@ export async function sendToHubSpot(lead, apiKey) {
 }
 
 /**
- * Update an existing contact
+ * Update an existing contact - only fills in missing data, doesn't overwrite
+ * @param {string} contactId - HubSpot contact ID
+ * @param {object} lead - Lead data
+ * @param {string} apiKey - HubSpot API key
+ * @param {object} existingProps - Existing contact properties (optional)
  */
-async function updateContact(contactId, lead, apiKey) {
-  // Build properties to update - include all available contact info
+async function updateContact(contactId, lead, apiKey, existingProps = {}) {
+  // Build properties to update - only add if not already present in contact
   const properties = {};
 
-  // Update phone if available
-  if (lead.phone) {
+  // Helper to check if property is empty/missing
+  const isEmpty = (value) => !value || value.trim() === '';
+
+  // Update phone if lead has it and contact doesn't
+  if (lead.phone && isEmpty(existingProps.phone)) {
     properties.phone = lead.phone;
+    console.log('[HubSpot] Adding missing phone:', lead.phone);
   }
 
-  // Update email if available
-  if (lead.email) {
+  // Update email if lead has it and contact doesn't
+  if (lead.email && isEmpty(existingProps.email)) {
     properties.email = lead.email;
+    console.log('[HubSpot] Adding missing email:', lead.email);
   }
 
-  // Update company if available
-  if (lead.company) {
+  // Update company if lead has it and contact doesn't
+  if (lead.company && isEmpty(existingProps.company)) {
     properties.company = lead.company;
+    console.log('[HubSpot] Adding missing company:', lead.company);
   }
 
-  // Update website if available
-  if (lead.website) {
+  // Update website if lead has it and contact doesn't
+  if (lead.website && isEmpty(existingProps.website)) {
     properties.website = lead.website;
+    console.log('[HubSpot] Adding missing website:', lead.website);
   }
 
-  // Update job title if available
-  if (lead.title) {
+  // Update job title if lead has it and contact doesn't
+  if (lead.title && isEmpty(existingProps.jobtitle)) {
     properties.jobtitle = lead.title;
+    console.log('[HubSpot] Adding missing job title:', lead.title);
+  }
+
+  // Update address if lead has it and contact doesn't
+  if (lead.address && isEmpty(existingProps.address)) {
+    properties.address = lead.address;
+    console.log('[HubSpot] Adding missing address:', lead.address);
   }
 
   // Only make API call if we have properties to update
   if (Object.keys(properties).length > 0) {
+    console.log('[HubSpot] Updating contact with:', properties);
     const response = await fetch(`${HUBSPOT_API_URL}/crm/v3/objects/contacts/${contactId}`, {
       method: 'PATCH',
       headers: {
@@ -143,7 +171,11 @@ async function updateContact(contactId, lead, apiKey) {
       const error = await response.json();
       console.warn('HubSpot update warning:', error.message);
       // Don't throw - continue to add note
+    } else {
+      console.log('[HubSpot] Contact updated successfully');
     }
+  } else {
+    console.log('[HubSpot] No new data to add - contact already has all info');
   }
 
   // Add note about the new lead activity
@@ -331,5 +363,142 @@ export async function searchContact(name, apiKey) {
     return await response.json();
   } catch (error) {
     return { results: [] };
+  }
+}
+
+/**
+ * Find existing contact by email, phone, or name to prevent duplicates
+ * @param {object} lead - The lead object
+ * @param {string} apiKey - HubSpot API key
+ * @returns {object|null} - Existing contact or null
+ */
+async function findExistingContact(lead, apiKey) {
+  const filterGroups = [];
+
+  // Search by email (most reliable)
+  if (lead.email) {
+    filterGroups.push({
+      filters: [{
+        propertyName: 'email',
+        operator: 'EQ',
+        value: lead.email
+      }]
+    });
+  }
+
+  // Search by phone (normalize phone for comparison)
+  if (lead.phone) {
+    const normalizedPhone = lead.phone.replace(/\D/g, '');
+    // Try exact match first
+    filterGroups.push({
+      filters: [{
+        propertyName: 'phone',
+        operator: 'CONTAINS_TOKEN',
+        value: normalizedPhone.slice(-10) // Last 10 digits
+      }]
+    });
+  }
+
+  // Search by name (firstname + lastname)
+  if (lead.name) {
+    const firstName = extractFirstName(lead.name);
+    const lastName = extractLastName(lead.name);
+
+    if (firstName && firstName !== 'Lead' && lastName && lastName !== 'Hunter') {
+      filterGroups.push({
+        filters: [
+          {
+            propertyName: 'firstname',
+            operator: 'EQ',
+            value: firstName
+          },
+          {
+            propertyName: 'lastname',
+            operator: 'EQ',
+            value: lastName
+          }
+        ]
+      });
+    }
+  }
+
+  if (filterGroups.length === 0) {
+    return null;
+  }
+
+  try {
+    // Search with OR logic between filter groups
+    const response = await fetch(`${HUBSPOT_API_URL}/crm/v3/objects/contacts/search`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        filterGroups: filterGroups,
+        properties: ['email', 'phone', 'firstname', 'lastname', 'company', 'website', 'jobtitle'],
+        limit: 10
+      })
+    });
+
+    if (!response.ok) {
+      console.warn('HubSpot search failed:', await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+
+    if (data.results && data.results.length > 0) {
+      // Find best match - prioritize email match, then phone, then name
+      for (const contact of data.results) {
+        const props = contact.properties;
+
+        // Exact email match is definitive
+        if (lead.email && props.email &&
+            props.email.toLowerCase() === lead.email.toLowerCase()) {
+          console.log('[HubSpot] Found existing contact by email:', props.email);
+          return contact;
+        }
+      }
+
+      // Check phone match
+      if (lead.phone) {
+        const leadPhoneNormalized = lead.phone.replace(/\D/g, '').slice(-10);
+        for (const contact of data.results) {
+          const props = contact.properties;
+          if (props.phone) {
+            const contactPhoneNormalized = props.phone.replace(/\D/g, '').slice(-10);
+            if (leadPhoneNormalized === contactPhoneNormalized) {
+              console.log('[HubSpot] Found existing contact by phone:', props.phone);
+              return contact;
+            }
+          }
+        }
+      }
+
+      // Check name match (require both first and last name)
+      if (lead.name) {
+        const leadFirst = extractFirstName(lead.name).toLowerCase();
+        const leadLast = extractLastName(lead.name).toLowerCase();
+
+        for (const contact of data.results) {
+          const props = contact.properties;
+          if (props.firstname && props.lastname) {
+            const contactFirst = props.firstname.toLowerCase();
+            const contactLast = props.lastname.toLowerCase();
+
+            if (leadFirst === contactFirst && leadLast === contactLast) {
+              console.log('[HubSpot] Found existing contact by name:', props.firstname, props.lastname);
+              return contact;
+            }
+          }
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('HubSpot search error:', error);
+    return null;
   }
 }
