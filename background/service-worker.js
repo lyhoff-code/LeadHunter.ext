@@ -504,12 +504,51 @@ async function saveLead(lead) {
   const storage = await chrome.storage.local.get(['leads']);
   const leads = storage.leads || [];
 
-  // Check for duplicates (same comment)
-  const isDuplicate = leads.some(l =>
-    l.comment === lead.comment && l.platform === lead.platform
-  );
+  // Normalize for comparison
+  const normalizeName = (name) => (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+  const normalizePhone = (phone) => (phone || '').replace(/\D/g, '').slice(-10);
+  const normalizeEmail = (email) => (email || '').toLowerCase().trim();
+
+  const newName = normalizeName(lead.name);
+  const newPhone = normalizePhone(lead.phone);
+  const newEmail = normalizeEmail(lead.email);
+  const newComment = (lead.comment || '').trim();
+
+  // Check for duplicates with multiple criteria
+  const isDuplicate = leads.some(l => {
+    // Same comment on same platform
+    if (newComment && l.comment && l.comment.trim() === newComment && l.platform === lead.platform) {
+      return true;
+    }
+
+    // Same profile URL
+    if (lead.profileUrl && l.profileUrl && lead.profileUrl === l.profileUrl) {
+      return true;
+    }
+
+    // Same name + platform (for leads with names)
+    const existingName = normalizeName(l.name);
+    if (newName && newName !== 'unknown' && existingName === newName && l.platform === lead.platform) {
+      return true;
+    }
+
+    // Same phone number
+    const existingPhone = normalizePhone(l.phone);
+    if (newPhone && newPhone.length >= 7 && existingPhone === newPhone) {
+      return true;
+    }
+
+    // Same email
+    const existingEmail = normalizeEmail(l.email);
+    if (newEmail && existingEmail === newEmail) {
+      return true;
+    }
+
+    return false;
+  });
 
   if (isDuplicate) {
+    console.log('Lead already exists (duplicate):', lead.name);
     return;
   }
 
@@ -612,19 +651,49 @@ async function saveManualContact(data) {
 // Handle scraped business from business pages
 async function handleScrapedBusiness(data) {
   try {
-    // Check for duplicates based on URL or business name + phone
+    // Check for duplicates based on multiple criteria
     const storage = await chrome.storage.local.get(['leads']);
     const leads = storage.leads || [];
 
-    const isDuplicate = leads.some(l =>
-      l.profileUrl === data.url ||
-      (l.name === data.name && l.phone === data.phone && data.phone) ||
-      (l.name === data.name && l.email === data.email && data.email)
-    );
+    // Normalize for comparison
+    const normalizeName = (name) => (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    const normalizePhone = (phone) => (phone || '').replace(/\D/g, '').slice(-10);
+    const normalizeEmail = (email) => (email || '').toLowerCase().trim();
+
+    const newName = normalizeName(data.name);
+    const newPhone = normalizePhone(data.phone);
+    const newEmail = normalizeEmail(data.email);
+
+    const isDuplicate = leads.some(l => {
+      // Same URL is definitely duplicate
+      if (l.profileUrl && data.url && l.profileUrl === data.url) {
+        return true;
+      }
+
+      // Same name on same platform (for scraped businesses)
+      const existingName = normalizeName(l.name);
+      if (newName && existingName === newName && l.platform === data.platform) {
+        return true;
+      }
+
+      // Same phone number (normalized)
+      const existingPhone = normalizePhone(l.phone);
+      if (newPhone && newPhone.length >= 7 && existingPhone === newPhone) {
+        return true;
+      }
+
+      // Same email
+      const existingEmail = normalizeEmail(l.email);
+      if (newEmail && existingEmail === newEmail) {
+        return true;
+      }
+
+      return false;
+    });
 
     if (isDuplicate) {
-      console.log('Business already saved:', data.name);
-      return { success: false, error: 'Business already saved' };
+      console.log('Business already saved (duplicate):', data.name);
+      return { success: false, error: 'duplicate' };
     }
 
     // Create scraped business lead
@@ -740,16 +809,31 @@ async function handleImageAnalysis(imageUrl, context = {}) {
       return { success: true, hasContactInfo: false };
     }
 
-    // Check for duplicates
+    // Check for duplicates with normalization
     const storage = await chrome.storage.local.get(['leads']);
     const leads = storage.leads || [];
 
-    const isDuplicate = leads.some(l =>
-      (result.data.email && l.email === result.data.email) ||
-      (result.data.phone && l.phone === result.data.phone) ||
-      (result.data.website && l.website === result.data.website) ||
-      (result.data.name && l.name === result.data.name && result.data.company && l.company === result.data.company)
-    );
+    // Normalize for comparison
+    const normalizeName = (name) => (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
+    const normalizePhone = (phone) => (phone || '').replace(/\D/g, '').slice(-10);
+    const normalizeEmail = (email) => (email || '').toLowerCase().trim();
+
+    const newEmail = normalizeEmail(result.data.email);
+    const newPhone = normalizePhone(result.data.phone);
+    const newName = normalizeName(result.data.name);
+    const newCompany = normalizeName(result.data.company);
+
+    const isDuplicate = leads.some(l => {
+      // Same email
+      if (newEmail && normalizeEmail(l.email) === newEmail) return true;
+      // Same phone
+      if (newPhone && newPhone.length >= 7 && normalizePhone(l.phone) === newPhone) return true;
+      // Same website
+      if (result.data.website && l.website === result.data.website) return true;
+      // Same name + company
+      if (newName && newCompany && normalizeName(l.name) === newName && normalizeName(l.company) === newCompany) return true;
+      return false;
+    });
 
     if (isDuplicate) {
       console.log('[LeadHunter] Contact from image already exists');
