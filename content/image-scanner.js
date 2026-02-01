@@ -25,13 +25,23 @@
   const PLATFORM_SELECTORS = {
     facebook: {
       images: [
+        // Feed images
         'div[data-pagelet*="Feed"] img[src*="fbcdn"]',
         'div[role="article"] img[src*="fbcdn"]',
         'div[data-pagelet*="GroupFeed"] img',
         '.userContentWrapper img',
-        'a[rel="theater"] img'
+        'a[rel="theater"] img',
+        // Photo viewer / Theater mode images (when you click on a photo)
+        'div[data-pagelet="MediaViewerPhoto"] img',
+        'img[data-visualcompletion="media-vc-image"]',
+        'div[role="dialog"] img[src*="fbcdn"]',
+        'div[aria-label*="Photo"] img',
+        '[data-pagelet="ProfilePhotoViewer"] img',
+        // General large images
+        'img[src*="fbcdn"][style*="max-width"]',
+        'img[src*="scontent"]'
       ],
-      container: 'div[role="article"], div[data-pagelet*="Feed"] > div'
+      container: 'div[role="article"], div[data-pagelet*="Feed"] > div, div[role="dialog"]'
     },
     linkedin: {
       images: [
@@ -88,6 +98,18 @@
   }
 
   /**
+   * Check if we're in a photo viewer/lightbox
+   */
+  function isInPhotoViewer() {
+    return (
+      window.location.href.includes('/photo') ||
+      document.querySelector('div[role="dialog"] img[src*="fbcdn"]') ||
+      document.querySelector('[data-pagelet="MediaViewerPhoto"]') ||
+      document.querySelector('div[aria-label*="Photo viewer"]')
+    );
+  }
+
+  /**
    * Check if image should be analyzed
    */
   function shouldAnalyzeImage(img) {
@@ -95,27 +117,33 @@
     const src = img.src || img.dataset.src;
     if (!src || processedImages.has(src)) return false;
 
+    // If we're in photo viewer, be more permissive
+    const inPhotoViewer = isInPhotoViewer();
+
     // Skip small images (likely icons/avatars)
     const width = img.naturalWidth || img.width || parseInt(img.style.width) || 0;
     const height = img.naturalHeight || img.height || parseInt(img.style.height) || 0;
 
-    if (width < 150 || height < 150) return false;
+    // In photo viewer, don't require size check (image might be loading)
+    const minSize = inPhotoViewer ? 100 : 150;
+    if (width > 0 && height > 0 && (width < minSize || height < minSize)) return false;
 
-    // Skip profile pictures and avatars
+    // Skip profile pictures and avatars (but not in photo viewer)
     const skipPatterns = [
-      /profile/i,
-      /avatar/i,
       /emoji/i,
-      /icon/i,
-      /logo.*16/i,
-      /logo.*24/i,
-      /logo.*32/i,
+      /icon.*\d+/i,
       /badge/i,
       /button/i,
       /static.*images/i,
       /rsrc\.php/i,  // Facebook static resources
       /sprite/i
     ];
+
+    // Only skip profile/avatar patterns if NOT in photo viewer
+    if (!inPhotoViewer) {
+      skipPatterns.push(/profile/i);
+      skipPatterns.push(/avatar/i);
+    }
 
     for (const pattern of skipPatterns) {
       if (pattern.test(src)) return false;
@@ -125,6 +153,12 @@
     if (width > 0 && height > 0) {
       const ratio = Math.max(width, height) / Math.min(width, height);
       if (ratio > 5) return false;
+    }
+
+    // If in photo viewer and image src contains scontent or fbcdn, definitely analyze it
+    if (inPhotoViewer && (src.includes('scontent') || src.includes('fbcdn'))) {
+      console.log('[LeadHunter] Photo viewer image detected:', src.substring(0, 80));
+      return true;
     }
 
     return true;
@@ -335,10 +369,47 @@
   }
 
   /**
+   * Scan for the main photo in photo viewer
+   */
+  function scanPhotoViewer() {
+    if (!settings.scanning || !settings.imageScanning) return;
+
+    // Specific selectors for Facebook photo viewer
+    const photoViewerSelectors = [
+      'div[data-pagelet="MediaViewerPhoto"] img',
+      'img[data-visualcompletion="media-vc-image"]',
+      'div[role="dialog"] img[src*="scontent"]',
+      'div[role="dialog"] img[src*="fbcdn"]',
+      '[aria-label*="Photo"] img[src*="scontent"]'
+    ];
+
+    for (const selector of photoViewerSelectors) {
+      const img = document.querySelector(selector);
+      if (img && img.src && (img.src.includes('scontent') || img.src.includes('fbcdn'))) {
+        // Check if it's a substantial image
+        const width = img.naturalWidth || img.width || 500;
+        const height = img.naturalHeight || img.height || 500;
+        if (width >= 100 && height >= 100) {
+          if (!processedImages.has(img.src)) {
+            console.log('[LeadHunter] Found photo viewer image:', img.src.substring(0, 80));
+            queueImageForAnalysis(img);
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  /**
    * Scan for new images on the page
    */
   function scanForImages() {
     if (!settings.scanning || !settings.imageScanning) return;
+
+    // If we're in photo viewer, prioritize that
+    if (isInPhotoViewer()) {
+      scanPhotoViewer();
+    }
 
     const selectors = getImageSelectors();
     const allSelectors = selectors.join(', ');
@@ -369,8 +440,21 @@
    * Setup mutation observer for new images
    */
   function setupObserver() {
+    let lastUrl = window.location.href;
+
     const observer = new MutationObserver((mutations) => {
       let hasNewImages = false;
+      let hasDialogChange = false;
+
+      // Check if URL changed (SPA navigation)
+      if (window.location.href !== lastUrl) {
+        lastUrl = window.location.href;
+        // If navigated to a photo, scan after a delay
+        if (lastUrl.includes('/photo')) {
+          console.log('[LeadHunter] Navigated to photo URL');
+          setTimeout(scanForImages, 1000);
+        }
+      }
 
       mutations.forEach(mutation => {
         mutation.addedNodes.forEach(node => {
@@ -380,15 +464,24 @@
             } else if (node.querySelectorAll) {
               const imgs = node.querySelectorAll('img');
               if (imgs.length > 0) hasNewImages = true;
+
+              // Check if a dialog was added (Facebook photo viewer)
+              if (node.matches && (
+                node.matches('div[role="dialog"]') ||
+                node.querySelector('div[role="dialog"]')
+              )) {
+                hasDialogChange = true;
+              }
             }
           }
         });
       });
 
-      if (hasNewImages) {
+      if (hasNewImages || hasDialogChange) {
         // Debounce scanning
         clearTimeout(window.leadHunterImageScanTimeout);
-        window.leadHunterImageScanTimeout = setTimeout(scanForImages, 500);
+        const delay = hasDialogChange ? 1500 : 500; // More delay for dialog (image needs to load)
+        window.leadHunterImageScanTimeout = setTimeout(scanForImages, delay);
       }
     });
 

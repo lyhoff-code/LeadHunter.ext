@@ -37,15 +37,30 @@
     switch (platform) {
       case 'facebook':
         // Facebook business pages have specific patterns
+        // Also check for contact info visible on page (sidebar)
+        const hasContactInfo = document.body.innerText.includes('Contact info') ||
+                               document.body.innerText.includes('Información de contacto') ||
+                               document.querySelector('a[href*="tel:"]') ||
+                               document.querySelector('a[href^="mailto:"]');
+
+        const hasBusinessIndicators = (
+          document.querySelector('[data-pagelet="ProfileActions"]') ||
+          document.querySelector('[aria-label="Page"]') ||
+          document.querySelector('div[role="main"] a[href*="/about"]') ||
+          (path.match(/^\/[^\/]+\/?$/) && document.querySelector('a[href*="/reviews"]')) ||
+          // Also detect if we're on a business page that shows contact info in sidebar
+          (hasContactInfo && (
+            document.querySelector('h1') ||
+            document.querySelector('[role="main"]')
+          ))
+        );
+
         return (
           !path.includes('/groups/') &&
-          !path.includes('/profile.php') &&
+          !path.includes('/profile.php?id=1') && // Skip personal profiles (usually numeric IDs)
           !path.includes('/friends') &&
           !path.includes('/messages') &&
-          (document.querySelector('[data-pagelet="ProfileActions"]') ||
-           document.querySelector('[aria-label="Page"]') ||
-           document.querySelector('div[role="main"] a[href*="/about"]') ||
-           path.match(/^\/[^\/]+\/?$/) && document.querySelector('a[href*="/reviews"]'))
+          hasBusinessIndicators
         );
 
       case 'linkedin':
@@ -158,33 +173,79 @@
       description: ''
     };
 
-    // Business name
+    // Business name - try multiple selectors
     const nameEl = document.querySelector('h1') ||
                    document.querySelector('[data-pagelet="ProfileActions"] h1') ||
-                   document.querySelector('span[dir="auto"] > h1');
+                   document.querySelector('span[dir="auto"] > h1') ||
+                   document.querySelector('[role="main"] h1');
     if (nameEl) info.name = nameEl.textContent.trim();
 
     // Look in the About section or page info
     const pageText = document.body.innerText;
 
-    // Phone - look for patterns
-    const phoneMatch = pageText.match(/(?:Phone|Tel|Call)[\s:]*([+]?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/i) ||
-                       pageText.match(/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-    if (phoneMatch) info.phone = phoneMatch[1] || phoneMatch[0];
+    // Phone - look for tel: links first (most reliable)
+    const phoneLink = document.querySelector('a[href^="tel:"]');
+    if (phoneLink) {
+      info.phone = phoneLink.href.replace('tel:', '').trim();
+    } else {
+      // Fallback to regex patterns
+      // Look for international format first (+1 419-296-2751)
+      const phoneMatch = pageText.match(/[+]1[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) ||
+                         pageText.match(/\(\d{3}\)[-.\s]?\d{3}[-.\s]?\d{4}/) ||
+                         pageText.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/);
+      if (phoneMatch) info.phone = phoneMatch[0];
+    }
 
-    // Email
-    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (emailMatch) info.email = emailMatch[0];
+    // Email - look for mailto: links first (most reliable)
+    const emailLink = document.querySelector('a[href^="mailto:"]');
+    if (emailLink) {
+      info.email = emailLink.href.replace('mailto:', '').split('?')[0].trim();
+    } else {
+      // Fallback to regex
+      const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (emailMatch && !emailMatch[0].includes('facebook.com') && !emailMatch[0].includes('example')) {
+        info.email = emailMatch[0];
+      }
+    }
 
     // Website - look for external links
     const websiteLinks = document.querySelectorAll('a[href*="l.facebook.com/l.php"]');
     for (const link of websiteLinks) {
-      const url = new URL(link.href);
-      const externalUrl = url.searchParams.get('u');
-      if (externalUrl && !externalUrl.includes('facebook.com')) {
-        info.website = decodeURIComponent(externalUrl);
-        break;
+      try {
+        const url = new URL(link.href);
+        const externalUrl = url.searchParams.get('u');
+        if (externalUrl && !externalUrl.includes('facebook.com')) {
+          info.website = decodeURIComponent(externalUrl);
+          break;
+        }
+      } catch (e) {}
+    }
+
+    // Also look for direct links with .com/.net/.org that aren't Facebook
+    if (!info.website) {
+      const allLinks = document.querySelectorAll('a[href*=".com"], a[href*=".net"], a[href*=".org"]');
+      for (const link of allLinks) {
+        const href = link.href;
+        if (href && !href.includes('facebook.com') && !href.includes('google.com') &&
+            !href.includes('instagram.com') && link.textContent.includes('.')) {
+          // Check if link text looks like a domain
+          const text = link.textContent.trim();
+          if (text.match(/^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}$/)) {
+            info.website = text.startsWith('http') ? text : 'https://' + text;
+            break;
+          }
+        }
       }
+    }
+
+    // Address - look for location links or text
+    const addressLink = document.querySelector('a[href*="maps"], a[href*="place"]');
+    if (addressLink) {
+      info.address = addressLink.textContent.trim();
+    } else {
+      // Look for address patterns in text
+      const addressMatch = pageText.match(/\d+\s+[A-Za-z]+\s+(St|Street|Rd|Road|Ave|Avenue|Blvd|Dr|Drive|Ln|Lane|Way|Ct|Court)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}/i);
+      if (addressMatch) info.address = addressMatch[0];
     }
 
     // Category
@@ -192,6 +253,7 @@
                        document.querySelector('[data-pagelet="ProfileTilesFeed"] span');
     if (categoryEl) info.category = categoryEl.textContent.trim();
 
+    console.log('[Lead Hunter] Extracted Facebook business:', info);
     return info;
   }
 
