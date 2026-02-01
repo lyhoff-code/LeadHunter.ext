@@ -665,26 +665,30 @@ async function handleScrapedBusiness(data) {
     const newEmail = normalizeEmail(data.email);
 
     const isDuplicate = leads.some(l => {
+      // Same phone number - CROSS PLATFORM (phone is globally unique)
+      const existingPhone = normalizePhone(l.phone);
+      if (newPhone && newPhone.length >= 7 && existingPhone === newPhone) {
+        console.log('[Dedup] Duplicate business by phone:', newPhone);
+        return true;
+      }
+
+      // Same email - CROSS PLATFORM (email is globally unique)
+      const existingEmail = normalizeEmail(l.email);
+      if (newEmail && existingEmail === newEmail) {
+        console.log('[Dedup] Duplicate business by email:', newEmail);
+        return true;
+      }
+
       // Same URL is definitely duplicate
       if (l.profileUrl && data.url && l.profileUrl === data.url) {
         return true;
       }
 
-      // Same name on same platform (for scraped businesses)
+      // Same business name - CROSS PLATFORM for scraped leads
+      // Business names are unique enough to dedupe across platforms
       const existingName = normalizeName(l.name);
-      if (newName && existingName === newName && l.platform === data.platform) {
-        return true;
-      }
-
-      // Same phone number (normalized)
-      const existingPhone = normalizePhone(l.phone);
-      if (newPhone && newPhone.length >= 7 && existingPhone === newPhone) {
-        return true;
-      }
-
-      // Same email
-      const existingEmail = normalizeEmail(l.email);
-      if (newEmail && existingEmail === newEmail) {
+      if (newName && newName.length > 3 && existingName === newName && l.leadType === 'scraped') {
+        console.log('[Dedup] Duplicate business by name:', newName);
         return true;
       }
 
