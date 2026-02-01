@@ -61,14 +61,47 @@ const OWNER_INDICATORS = [
 
 // Industry-specific keywords
 const INDUSTRY_KEYWORDS = {
-  plumbing: ['plomero', 'plumber', 'plomeria', 'plumbing', 'tuberias', 'pipes', 'drain', 'drenaje'],
-  hvac: ['hvac', 'aire acondicionado', 'ac', 'air conditioning', 'heating', 'calefaccion', 'ventilation'],
-  dental: ['dentista', 'dental', 'dentist', 'clinica dental', 'consultorio dental', 'orthodontist', 'ortodoncia'],
-  contractors: ['contratista', 'contractor', 'construccion', 'construction', 'remodeling', 'remodelacion'],
-  medical: ['doctor', 'medico', 'clinica', 'clinic', 'consultorio', 'practice', 'pacientes', 'patients'],
-  legal: ['abogado', 'lawyer', 'attorney', 'legal', 'bufete', 'law firm', 'despacho'],
-  realestate: ['real estate', 'bienes raices', 'inmobiliaria', 'realtor', 'agente', 'property'],
-  automotive: ['mecanico', 'mechanic', 'taller', 'auto shop', 'car repair', 'automotive']
+  // Home Services
+  plumbing: ['plomero', 'plumber', 'plomeria', 'plumbing', 'tuberias', 'pipes', 'drain', 'drenaje', 'water heater', 'faucet', 'toilet', 'leak'],
+  hvac: ['hvac', 'aire acondicionado', 'ac', 'air conditioning', 'heating', 'calefaccion', 'ventilation', 'furnace', 'heat pump', 'cooling', 'ductwork', 'hvac owner', 'hvac business', 'hvac company'],
+  electrical: ['electricista', 'electrician', 'electrical', 'wiring', 'panel', 'outlet', 'circuit', 'voltage'],
+  contractors: ['contratista', 'contractor', 'construccion', 'construction', 'remodeling', 'remodelacion', 'general contractor', 'gc', 'builder'],
+  roofing: ['techador', 'roofer', 'roofing', 'techo', 'roof', 'shingles', 'gutters'],
+  landscaping: ['jardinero', 'landscaper', 'landscaping', 'lawn care', 'lawn', 'garden', 'tree service', 'mowing'],
+  cleaning: ['limpieza', 'cleaning', 'cleaner', 'maid', 'janitorial', 'house cleaning', 'commercial cleaning'],
+  pest: ['fumigador', 'pest control', 'exterminator', 'termite', 'bug', 'rodent', 'pest'],
+  painting: ['pintor', 'painter', 'painting', 'pintura', 'house painter'],
+  locksmith: ['cerrajero', 'locksmith', 'locks', 'keys', 'security'],
+
+  // Healthcare
+  dental: ['dentista', 'dental', 'dentist', 'clinica dental', 'consultorio dental', 'orthodontist', 'ortodoncia', 'dental office', 'dental practice'],
+  medical: ['doctor', 'medico', 'clinica', 'clinic', 'consultorio', 'practice', 'pacientes', 'patients', 'medical office', 'physician'],
+  chiropractic: ['quiropractico', 'chiropractor', 'chiropractic', 'spine', 'adjustment'],
+  veterinary: ['veterinario', 'vet', 'veterinary', 'veterinarian', 'animal clinic', 'pet clinic'],
+  optometry: ['optometrista', 'optometrist', 'optometry', 'eye doctor', 'vision', 'optical'],
+  medspa: ['med spa', 'medspa', 'medical spa', 'botox', 'aesthetic', 'laser', 'skin clinic'],
+
+  // Professional Services
+  legal: ['abogado', 'lawyer', 'attorney', 'legal', 'bufete', 'law firm', 'despacho', 'law office'],
+  accounting: ['contador', 'accountant', 'accounting', 'cpa', 'tax', 'bookkeeper', 'bookkeeping'],
+  insurance: ['seguros', 'insurance', 'insurance agent', 'insurance agency', 'broker'],
+  realestate: ['real estate', 'bienes raices', 'inmobiliaria', 'realtor', 'agente', 'property', 'real estate agent', 'broker'],
+  mortgage: ['hipoteca', 'mortgage', 'loan officer', 'lending', 'home loan'],
+  financial: ['asesor financiero', 'financial advisor', 'financial planner', 'wealth', 'investment'],
+
+  // Automotive
+  automotive: ['mecanico', 'mechanic', 'taller', 'auto shop', 'car repair', 'automotive', 'auto repair', 'garage'],
+  towing: ['grua', 'towing', 'tow truck', 'roadside assistance'],
+  autobody: ['carroceria', 'auto body', 'body shop', 'collision', 'paint shop'],
+  carwash: ['lavado de autos', 'car wash', 'carwash', 'auto detailing', 'detailing'],
+
+  // Other Services
+  photography: ['fotografo', 'photographer', 'photography', 'photo studio', 'wedding photographer'],
+  salon: ['salon', 'spa', 'beauty', 'hair salon', 'nail salon', 'barber', 'estetica'],
+  fitness: ['gimnasio', 'gym', 'fitness', 'personal trainer', 'crossfit', 'yoga studio'],
+  restaurant: ['restaurante', 'restaurant', 'cafe', 'bar', 'food', 'catering'],
+  moving: ['mudanza', 'moving', 'mover', 'moving company', 'relocation'],
+  storage: ['almacen', 'storage', 'self storage', 'warehouse']
 };
 
 // Garbage/low-value indicators (skip these)
@@ -186,18 +219,13 @@ export function passesKeywordFilter(comment, settings = {}) {
   // PROSPECT LEAD: Business owner without explicit pain
   // They might need our service but haven't expressed pain yet
 
-  // Prospect 1: Owner indicator + industry match
-  if (hasOwnerIndicator && hasIndustryMatch && wordCount >= 8) {
-    return { pass: true, leadType: 'prospect', reason: 'owner_in_industry', priority: 'low', industry: matchedIndustry };
+  // Prospect 1: Any industry match with minimum content
+  if (hasIndustryMatch && wordCount >= 5) {
+    return { pass: true, leadType: 'prospect', reason: 'industry_match', priority: 'low', industry: matchedIndustry };
   }
 
-  // Prospect 2: Industry match + substantial post (they're talking about business)
-  if (hasIndustryMatch && wordCount >= 20) {
-    return { pass: true, leadType: 'prospect', reason: 'industry_discussion', priority: 'low', industry: matchedIndustry };
-  }
-
-  // Prospect 3: Owner indicator + substantial post
-  if (hasOwnerIndicator && wordCount >= 15) {
+  // Prospect 2: Owner indicator + any substantial content
+  if (hasOwnerIndicator && wordCount >= 8) {
     return { pass: true, leadType: 'prospect', reason: 'business_owner', priority: 'low' };
   }
 
