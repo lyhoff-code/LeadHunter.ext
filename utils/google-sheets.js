@@ -10,7 +10,14 @@
  */
 export async function sendToGoogleSheets(lead, sheetsWebhookUrl) {
   if (!sheetsWebhookUrl) {
+    console.error('[Lead Hunter] No Google Sheets URL configured');
     throw new Error('No Google Sheets webhook URL configured');
+  }
+
+  // Validate URL format
+  if (!sheetsWebhookUrl.includes('script.google.com')) {
+    console.error('[Lead Hunter] Invalid Google Sheets URL - must be a script.google.com URL');
+    throw new Error('Invalid Google Sheets URL - must be a script.google.com URL');
   }
 
   const row = {
@@ -34,22 +41,61 @@ export async function sendToGoogleSheets(lead, sheetsWebhookUrl) {
     contacted: lead.contacted ? 'Yes' : 'No'
   };
 
+  console.log('[Lead Hunter] Sending to Google Sheets:', { url: sheetsWebhookUrl, lead: lead.name });
+
   try {
     const response = await fetch(sheetsWebhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(row)
+      body: JSON.stringify(row),
+      redirect: 'follow'  // Follow redirects (Apps Script uses redirects)
     });
 
-    if (!response.ok) {
-      throw new Error(`Google Sheets error: ${response.status}`);
+    // Apps Script may return opaque response or redirect
+    // A successful POST to Apps Script usually returns 200 or follows redirect
+    console.log('[Lead Hunter] Google Sheets response status:', response.status);
+
+    if (!response.ok && response.status !== 0) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error('[Lead Hunter] Google Sheets error response:', errorText);
+      throw new Error(`Google Sheets error: ${response.status} - ${errorText}`);
     }
 
-    return { success: true };
+    // Try to parse response
+    try {
+      const result = await response.json();
+      console.log('[Lead Hunter] Google Sheets success:', result);
+      return { success: true, result };
+    } catch (e) {
+      // Response might not be JSON, that's OK if status was 200
+      console.log('[Lead Hunter] Google Sheets sent (no JSON response)');
+      return { success: true };
+    }
   } catch (error) {
-    console.error('Google Sheets error:', error);
+    console.error('[Lead Hunter] Google Sheets fetch error:', error.message);
+
+    // If it's a network error, might be CORS - try with no-cors mode as fallback
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      console.log('[Lead Hunter] Retrying Google Sheets with no-cors mode...');
+      try {
+        await fetch(sheetsWebhookUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain'  // no-cors only allows simple headers
+          },
+          body: JSON.stringify(row)
+        });
+        console.log('[Lead Hunter] Google Sheets sent via no-cors (cannot verify success)');
+        return { success: true, mode: 'no-cors' };
+      } catch (retryError) {
+        console.error('[Lead Hunter] Google Sheets no-cors retry failed:', retryError.message);
+        throw retryError;
+      }
+    }
+
     throw error;
   }
 }
