@@ -98,6 +98,12 @@
 
     <!-- Leads Tab -->
     <section id="leads" class="tab-content">
+      <div class="leads-header">
+        <button id="addManualLead" class="btn btn-primary btn-small">
+          <span class="btn-icon">+</span> <span data-i18n="addLead">Add Lead</span>
+        </button>
+      </div>
+
       <div class="filters">
         <select id="platformFilter">
           <option value="all" data-i18n="allPlatforms">All platforms</option>
@@ -116,6 +122,7 @@
           <option value="contractortalk">ContractorTalk</option>
           <option value="youtube">YouTube</option>
           <option value="tiktok">TikTok</option>
+          <option value="manual">Manual</option>
         </select>
         <select id="scoreFilter">
           <option value="all" data-i18n="allScores">All scores</option>
@@ -518,6 +525,74 @@
             <li data-i18n="sheetsStep8">Paste the URL in Lead Hunter settings</li>
           </ol>
         </div>
+      </div>
+    </div>
+
+    <!-- Add Manual Lead Modal -->
+    <div id="addLeadModal" class="modal">
+      <div class="modal-content">
+        <button class="modal-close" id="closeAddLeadModal">&times;</button>
+        <h2><span class="modal-icon">➕</span> <span data-i18n="addManualLead">Add Manual Lead</span></h2>
+
+        <form id="manualLeadForm" class="manual-lead-form">
+          <div class="form-group">
+            <label for="manualName" data-i18n="businessName">Business Name</label>
+            <input type="text" id="manualName" required placeholder="ABC Plumbing Co.">
+          </div>
+
+          <div class="form-group">
+            <label for="manualPhone" data-i18n="phone">Phone</label>
+            <input type="tel" id="manualPhone" placeholder="(555) 123-4567">
+          </div>
+
+          <div class="form-group">
+            <label for="manualEmail" data-i18n="email">Email</label>
+            <input type="email" id="manualEmail" placeholder="contact@business.com">
+          </div>
+
+          <div class="form-group">
+            <label for="manualWebsite" data-i18n="website">Website</label>
+            <input type="url" id="manualWebsite" placeholder="https://www.business.com">
+          </div>
+
+          <div class="form-group">
+            <label for="manualAddress" data-i18n="address">Address</label>
+            <input type="text" id="manualAddress" placeholder="123 Main St, City, ST 12345">
+          </div>
+
+          <div class="form-group">
+            <label for="manualCategory" data-i18n="category">Category / Industry</label>
+            <select id="manualCategory">
+              <option value="">-- Select --</option>
+              <option value="plumbing">Plumbing</option>
+              <option value="hvac">HVAC</option>
+              <option value="electrical">Electrical</option>
+              <option value="roofing">Roofing</option>
+              <option value="contractors">Contractors</option>
+              <option value="landscaping">Landscaping</option>
+              <option value="cleaning">Cleaning</option>
+              <option value="pest">Pest Control</option>
+              <option value="painting">Painting</option>
+              <option value="dental">Dental</option>
+              <option value="medical">Medical</option>
+              <option value="legal">Legal</option>
+              <option value="automotive">Automotive</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="salon">Salon/Spa</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="manualNotes" data-i18n="notes">Notes</label>
+            <textarea id="manualNotes" rows="2" placeholder="Additional notes about this lead..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="cancelAddLead" class="btn btn-secondary" data-i18n="cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" data-i18n="saveLead">Save Lead</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

@@ -2100,3 +2100,109 @@ select {
 .skeleton-text:last-child {
   width: 60%;
 }
+
+/* ==================== LEADS HEADER ==================== */
+.leads-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.leads-header .btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+/* ==================== MANUAL LEAD FORM ==================== */
+.manual-lead-form {
+  padding: 10px 0;
+}
+
+.manual-lead-form .form-group {
+  margin-bottom: 16px;
+}
+
+.manual-lead-form label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.manual-lead-form input,
+.manual-lead-form select,
+.manual-lead-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--white);
+  color: var(--primary);
+  transition: all 0.2s ease;
+}
+
+.manual-lead-form input:focus,
+.manual-lead-form select:focus,
+.manual-lead-form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.manual-lead-form input::placeholder,
+.manual-lead-form textarea::placeholder {
+  color: var(--gray-400);
+}
+
+.manual-lead-form .form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gray-200);
+}
+
+.manual-lead-form .form-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+/* Modal Icon */
+.modal-icon {
+  font-size: 24px;
+  margin-right: 8px;
+}
+
+#addLeadModal h2 {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  color: var(--primary);
+  font-size: 20px;
+}
+
+/* Dark mode styles for manual form */
+body.dark-mode .manual-lead-form input,
+body.dark-mode .manual-lead-form select,
+body.dark-mode .manual-lead-form textarea {
+  background: var(--primary-medium);
+  border-color: var(--gray-600);
+  color: var(--white);
+}
+
+body.dark-mode .manual-lead-form label {
+  color: var(--gray-300);
+}
+
+body.dark-mode #addLeadModal h2 {
+  color: var(--white);
+}
+
+body.dark-mode .manual-lead-form .form-actions {
+  border-top-color: var(--gray-600);
+}

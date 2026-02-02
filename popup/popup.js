@@ -273,6 +273,15 @@ class PopupController {
     // Apps Script copy
     document.getElementById('copyAppsScript').addEventListener('click', () => this.copyAppsScript());
 
+    // Manual Lead Form
+    document.getElementById('addManualLead').addEventListener('click', () => this.showAddLeadModal());
+    document.getElementById('closeAddLeadModal').addEventListener('click', () => this.closeAddLeadModal());
+    document.getElementById('cancelAddLead').addEventListener('click', () => this.closeAddLeadModal());
+    document.getElementById('manualLeadForm').addEventListener('submit', (e) => this.saveManualLead(e));
+    document.getElementById('addLeadModal').addEventListener('click', (e) => {
+      if (e.target.id === 'addLeadModal') this.closeAddLeadModal();
+    });
+
     // Listen for updates from background
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.type === 'NEW_LEAD') {
@@ -668,6 +677,103 @@ class PopupController {
 
   closeSheetsModal() {
     document.getElementById('sheetsModal').classList.remove('active');
+  }
+
+  // ==================== MANUAL LEAD FUNCTIONS ====================
+
+  showAddLeadModal() {
+    // Clear the form
+    document.getElementById('manualLeadForm').reset();
+    // Show the modal
+    document.getElementById('addLeadModal').classList.add('active');
+  }
+
+  closeAddLeadModal() {
+    document.getElementById('addLeadModal').classList.remove('active');
+  }
+
+  async saveManualLead(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('manualName').value.trim();
+    const phone = document.getElementById('manualPhone').value.trim();
+    const email = document.getElementById('manualEmail').value.trim();
+    const website = document.getElementById('manualWebsite').value.trim();
+    const address = document.getElementById('manualAddress').value.trim();
+    const category = document.getElementById('manualCategory').value;
+    const notes = document.getElementById('manualNotes').value.trim();
+
+    // Validate at least name or phone or email
+    if (!name && !phone && !email) {
+      this.showToast(t('fillAtLeastOne', this.currentLanguage) || 'Please fill at least name, phone, or email', 'error');
+      return;
+    }
+
+    // Create the lead object
+    const lead = {
+      id: `manual_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: name || 'Unknown',
+      phone: phone,
+      email: email,
+      website: website,
+      address: address,
+      category: category,
+      notes: notes,
+      platform: 'manual',
+      leadType: 'manual',
+      score: 7, // Default score for manual leads
+      urgencyLevel: 'medium',
+      timestamp: new Date().toISOString(),
+      url: '',
+      comment: notes || `Manual lead: ${name}`,
+      analysis: {
+        summary: 'Manually added lead',
+        industry: category || 'Unknown',
+        intent: 'unknown',
+        approach: 'direct'
+      }
+    };
+
+    // Add to leads array
+    this.leads.unshift(lead);
+
+    // Save to storage
+    await this.saveLeads();
+
+    // Notify background script
+    try {
+      await chrome.runtime.sendMessage({
+        type: 'MANUAL_LEAD_ADDED',
+        lead: lead
+      });
+    } catch (e) {
+      console.log('Background notification failed:', e);
+    }
+
+    // Close modal
+    this.closeAddLeadModal();
+
+    // Show success message
+    this.showToast(t('leadSaved', this.currentLanguage) || 'Lead saved successfully!', 'success');
+
+    // Refresh the leads list
+    this.renderDashboard();
+    this.renderLeadsList();
+
+    // Switch to leads tab to show the new lead
+    this.switchTab('leads');
+  }
+
+  showToast(message, type = 'success') {
+    // Remove existing toasts
+    document.querySelectorAll('.toast').forEach(t => t.remove());
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span> ${message}`;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
   }
 
   loadAppsScriptCode() {

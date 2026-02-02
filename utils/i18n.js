@@ -44,6 +44,21 @@ export const translations = {
     noLeads: 'No leads detected.',
     noLeadsFilter: 'No leads match these filters.',
 
+    // Manual Lead Form
+    addLead: 'Add Lead',
+    addManualLead: 'Add Manual Lead',
+    businessName: 'Business Name',
+    phone: 'Phone',
+    email: 'Email',
+    website: 'Website',
+    address: 'Address',
+    category: 'Category / Industry',
+    notes: 'Notes',
+    cancel: 'Cancel',
+    saveLead: 'Save Lead',
+    leadSaved: 'Lead saved successfully!',
+    fillAtLeastOne: 'Please fill at least name, phone, or email',
+
     // Settings
     settingsAI: 'AI & Analysis',
     geminiApiKey: 'Gemini API Key',
@@ -283,6 +298,21 @@ export const translations = {
     manuallySaved: 'Guardado manual',
     noLeads: 'No hay leads detectados.',
     noLeadsFilter: 'No hay leads con estos filtros.',
+
+    // Manual Lead Form
+    addLead: 'Agregar Lead',
+    addManualLead: 'Agregar Lead Manual',
+    businessName: 'Nombre del Negocio',
+    phone: 'Teléfono',
+    email: 'Correo',
+    website: 'Sitio Web',
+    address: 'Dirección',
+    category: 'Categoría / Industria',
+    notes: 'Notas',
+    cancel: 'Cancelar',
+    saveLead: 'Guardar Lead',
+    leadSaved: '¡Lead guardado exitosamente!',
+    fillAtLeastOne: 'Por favor llena al menos nombre, teléfono o correo',
 
     // Settings
     settingsAI: 'IA y Análisis',
