@@ -2496,39 +2496,158 @@
       window.location.href
     ].join(' ').toLowerCase();
 
+    // Comprehensive industry keywords with all variations
     const industryKeywords = {
-      plumbing: ['plumb', 'plumber', 'plomero', 'drain', 'pipe', 'faucet', 'water heater'],
-      hvac: ['hvac', 'heating', 'cooling', 'air condition', 'furnace', 'clima', 'ac repair', 'heat pump'],
-      electrical: ['electric', 'electrician', 'wiring', 'outlet', 'panel', 'electricista'],
-      contractors: ['contractor', 'construction', 'remodel', 'renovation', 'building', 'contratista'],
-      roofing: ['roof', 'roofing', 'shingle', 'gutter', 'techo', 'tejado'],
-      landscaping: ['landscape', 'landscaping', 'lawn', 'garden', 'yard', 'tree', 'jardin'],
-      cleaning: ['clean', 'cleaning', 'maid', 'janitorial', 'limpieza'],
-      pest: ['pest', 'exterminator', 'termite', 'bug', 'rodent', 'plaga'],
-      painting: ['paint', 'painter', 'painting', 'pintura', 'pintor'],
-      locksmith: ['locksmith', 'lock', 'key', 'cerrajero'],
-      dental: ['dental', 'dentist', 'dentistry', 'orthodont', 'dentista'],
-      medical: ['medical', 'clinic', 'doctor', 'physician', 'health', 'clinica', 'medico'],
-      chiropractic: ['chiropractic', 'chiropractor', 'spine', 'quiropractico'],
-      veterinary: ['vet', 'veterinary', 'veterinarian', 'animal', 'pet', 'veterinario'],
-      optometry: ['optometry', 'optometrist', 'eye', 'vision', 'optical', 'optometrista'],
-      medspa: ['medspa', 'med spa', 'botox', 'aesthetic', 'laser', 'skin'],
-      legal: ['law', 'lawyer', 'attorney', 'legal', 'abogado', 'bufete'],
-      accounting: ['account', 'cpa', 'tax', 'bookkeep', 'contador', 'contabilidad'],
-      insurance: ['insurance', 'insurer', 'seguro', 'poliza'],
-      realestate: ['real estate', 'realtor', 'realty', 'property', 'inmobiliaria', 'bienes raices'],
-      mortgage: ['mortgage', 'loan', 'lending', 'hipoteca'],
-      financial: ['financial', 'advisor', 'wealth', 'investment', 'finanzas'],
-      automotive: ['auto', 'car', 'mechanic', 'repair', 'garage', 'taller', 'mecanico'],
-      towing: ['towing', 'tow', 'roadside', 'grua'],
-      autobody: ['auto body', 'body shop', 'collision', 'carroceria'],
-      carwash: ['car wash', 'carwash', 'detailing', 'lavado'],
-      photography: ['photo', 'photography', 'photographer', 'fotografia', 'fotografo'],
-      salon: ['salon', 'spa', 'beauty', 'hair', 'nail', 'estetica'],
-      fitness: ['fitness', 'gym', 'personal train', 'workout', 'gimnasio'],
-      restaurant: ['restaurant', 'food', 'dining', 'cafe', 'restaurante'],
-      moving: ['moving', 'mover', 'relocation', 'mudanza'],
-      storage: ['storage', 'self storage', 'almacen']
+      // Home Services - Plumbing
+      plumbing: ['plumb', 'plumber', 'plumbers', 'plomero', 'plomeria', 'drain', 'drains', 'drainage',
+                 'pipe', 'pipes', 'piping', 'faucet', 'faucets', 'water heater', 'sewer', 'septic',
+                 'toilet', 'bathroom', 'sink', 'leak', 'clog', 'unclog', 'rooter', 'tuberia'],
+
+      // Home Services - HVAC
+      hvac: ['hvac', 'heating', 'heater', 'cooling', 'air condition', 'ac ', 'a/c', 'furnace',
+             'clima', 'climatizacion', 'ac repair', 'heat pump', 'ductwork', 'ventilation',
+             'thermostat', 'refriger', 'calefaccion', 'aire acondicionado', 'mini split', 'central air'],
+
+      // Home Services - Electrical
+      electrical: ['electric', 'electri', 'electrician', 'electricians', 'electricista', 'wiring',
+                   'outlet', 'outlets', 'panel', 'panels', 'circuit', 'breaker', 'lighting', 'voltage',
+                   'rewire', 'generator', 'instalacion electrica', 'luz', 'power'],
+
+      // Home Services - General Contractors
+      contractors: ['contractor', 'contractors', 'contracting', 'construction', 'construct', 'builder',
+                    'remodel', 'remodeling', 'renovation', 'renovations', 'building', 'contratista',
+                    'general contractor', 'home improvement', 'handyman', 'remodelacion', 'obras'],
+
+      // Home Services - Roofing
+      roofing: ['roof', 'roofs', 'roofer', 'roofers', 'roofing', 'shingle', 'shingles', 'gutter',
+                'gutters', 'techo', 'techos', 'tejado', 'siding', 'flashing', 'leak', 'slate', 'tile roof'],
+
+      // Home Services - Landscaping
+      landscaping: ['landscape', 'landscaper', 'landscapers', 'landscaping', 'lawn', 'lawns', 'lawncare',
+                    'garden', 'gardener', 'gardening', 'yard', 'yards', 'tree', 'trees', 'jardin',
+                    'jardinero', 'jardineria', 'mowing', 'trimming', 'poda', 'cesped', 'irrigation', 'sprinkler'],
+
+      // Home Services - Cleaning
+      cleaning: ['clean', 'cleaner', 'cleaners', 'cleaning', 'maid', 'maids', 'janitorial', 'janitor',
+                 'limpieza', 'housekeep', 'sanitiz', 'disinfect', 'carpet clean', 'window clean',
+                 'pressure wash', 'power wash', 'servicio de limpieza'],
+
+      // Home Services - Pest Control
+      pest: ['pest', 'pests', 'exterminator', 'extermination', 'termite', 'termites', 'bug', 'bugs',
+             'rodent', 'rodents', 'plaga', 'plagas', 'fumiga', 'insect', 'ant ', 'ants', 'roach',
+             'cockroach', 'mouse', 'mice', 'rat ', 'rats', 'bedbug', 'mosquito', 'control de plagas'],
+
+      // Home Services - Painting
+      painting: ['paint', 'painter', 'painters', 'painting', 'pintura', 'pintor', 'pintores',
+                 'interior paint', 'exterior paint', 'house paint', 'residential paint', 'commercial paint',
+                 'stain', 'staining', 'coating', 'drywall', 'wallpaper'],
+
+      // Home Services - Locksmith
+      locksmith: ['locksmith', 'locksmiths', 'lock', 'locks', 'key', 'keys', 'cerrajero', 'cerrajeria',
+                  'deadbolt', 'rekey', 'lockout', 'security', 'safe', 'door lock', 'llaves'],
+
+      // Healthcare - Dental
+      dental: ['dental', 'dentist', 'dentists', 'dentistry', 'orthodont', 'ortho', 'dentista',
+               'odontolog', 'teeth', 'tooth', 'oral', 'braces', 'implant', 'crown', 'cavity',
+               'endodont', 'periodont', 'denture', 'veneer', 'whitening', 'clinica dental'],
+
+      // Healthcare - Medical
+      medical: ['medical', 'medicine', 'clinic', 'clinics', 'doctor', 'doctors', 'physician', 'physicians',
+                'health', 'healthcare', 'clinica', 'medico', 'medicina', 'hospital', 'practice', 'primary care',
+                'urgent care', 'family medicine', 'internal medicine', 'pediatr', 'consultorio'],
+
+      // Healthcare - Chiropractic
+      chiropractic: ['chiropractic', 'chiropractor', 'chiropractors', 'spine', 'spinal', 'quiropractico',
+                     'quiropractic', 'adjustment', 'back pain', 'neck pain', 'wellness', 'alignment'],
+
+      // Healthcare - Veterinary
+      veterinary: ['vet', 'vets', 'veterinary', 'veterinarian', 'veterinarians', 'animal', 'animals',
+                   'pet', 'pets', 'veterinario', 'veterinaria', 'dog', 'cat', 'clinic animal', 'animal hospital',
+                   'grooming', 'boarding', 'mascota', 'perro', 'gato'],
+
+      // Healthcare - Optometry
+      optometry: ['optometry', 'optometrist', 'optometrists', 'eye', 'eyes', 'vision', 'optical', 'optic',
+                  'optometrista', 'glasses', 'contacts', 'lens', 'lenses', 'eyewear', 'ophthalmolog',
+                  'oculista', 'lentes', 'anteojos', 'gafas'],
+
+      // Healthcare - Med Spa
+      medspa: ['medspa', 'med spa', 'medi spa', 'botox', 'aesthetic', 'aesthetics', 'laser', 'skin',
+               'skincare', 'cosmetic', 'beauty clinic', 'anti-aging', 'filler', 'injection', 'rejuvenation',
+               'spa medico', 'estetica medica', 'dermatolog'],
+
+      // Professional - Legal
+      legal: ['law', 'laws', 'lawyer', 'lawyers', 'attorney', 'attorneys', 'legal', 'abogado', 'abogados',
+              'bufete', 'law firm', 'law office', 'litigation', 'injury', 'accident', 'divorce', 'criminal',
+              'defense', 'immigration', 'estate', 'despacho juridico', 'licenciado'],
+
+      // Professional - Accounting
+      accounting: ['account', 'accountant', 'accountants', 'accounting', 'cpa', 'tax', 'taxes', 'taxation',
+                   'bookkeep', 'bookkeeper', 'contador', 'contabilidad', 'contadores', 'fiscal', 'audit',
+                   'payroll', 'financial statement', 'impuestos', 'declaracion'],
+
+      // Professional - Insurance
+      insurance: ['insurance', 'insurer', 'insurers', 'insuring', 'seguro', 'seguros', 'poliza', 'aseguradora',
+                  'coverage', 'policy', 'policies', 'agent', 'broker', 'life insurance', 'auto insurance',
+                  'home insurance', 'health insurance', 'agente de seguros'],
+
+      // Professional - Real Estate
+      realestate: ['real estate', 'realestate', 'realtor', 'realtors', 'realty', 'property', 'properties',
+                   'inmobiliaria', 'bienes raices', 'broker', 'agent', 'home sale', 'house sale', 'listing',
+                   'buyer', 'seller', 'mortgage', 'corredor', 'agente inmobiliario', 'venta de casas'],
+
+      // Professional - Mortgage
+      mortgage: ['mortgage', 'mortgages', 'loan', 'loans', 'lending', 'lender', 'hipoteca', 'hipotecario',
+                 'refinance', 'refinancing', 'home loan', 'credit', 'prestamo', 'financiamiento'],
+
+      // Professional - Financial
+      financial: ['financial', 'finance', 'advisor', 'advisors', 'wealth', 'investment', 'investments',
+                  'finanzas', 'financiero', 'asesor', 'planning', 'retirement', 'portfolio', 'stock',
+                  'mutual fund', 'asset', 'capital', 'inversiones'],
+
+      // Automotive - Repair
+      automotive: ['auto', 'autos', 'automobile', 'car', 'cars', 'mechanic', 'mechanics', 'mechanical',
+                   'repair', 'repairs', 'garage', 'taller', 'mecanico', 'automotriz', 'vehicle', 'motor',
+                   'engine', 'brake', 'transmission', 'oil change', 'tune up', 'diagnostico'],
+
+      // Automotive - Towing
+      towing: ['towing', 'tow', 'tows', 'roadside', 'grua', 'gruas', 'remolque', 'emergency', 'breakdown',
+               'jump start', 'flat tire', 'lockout', 'winch', 'recovery', 'auxilio vial'],
+
+      // Automotive - Body Shop
+      autobody: ['auto body', 'autobody', 'body shop', 'bodyshop', 'collision', 'collisions', 'carroceria',
+                 'dent', 'dents', 'scratch', 'paint job', 'refinish', 'bumper', 'fender', 'hojalateria',
+                 'pintura automotriz'],
+
+      // Automotive - Car Wash
+      carwash: ['car wash', 'carwash', 'detailing', 'detail', 'lavado', 'lavado de autos', 'auto spa',
+                'wax', 'waxing', 'polish', 'polishing', 'interior clean', 'exterior wash', 'hand wash'],
+
+      // Creative - Photography
+      photography: ['photo', 'photos', 'photography', 'photographer', 'photographers', 'fotografia',
+                    'fotografo', 'portrait', 'wedding photo', 'event photo', 'studio', 'headshot',
+                    'session', 'picture', 'imagen', 'retrato', 'foto estudio'],
+
+      // Personal Services - Salon
+      salon: ['salon', 'salons', 'spa', 'spas', 'beauty', 'hair', 'hairstyl', 'nail', 'nails', 'estetica',
+              'peluqueria', 'barbershop', 'barber', 'stylist', 'manicure', 'pedicure', 'facial',
+              'massage', 'wax', 'corte', 'cabello', 'belleza'],
+
+      // Personal Services - Fitness
+      fitness: ['fitness', 'gym', 'gyms', 'personal train', 'trainer', 'trainers', 'workout', 'workouts',
+                'gimnasio', 'exercise', 'crossfit', 'yoga', 'pilates', 'boot camp', 'weight', 'cardio',
+                'entrenador', 'entrenamiento', 'health club'],
+
+      // Food Services - Restaurant
+      restaurant: ['restaurant', 'restaurants', 'restaurante', 'food', 'foods', 'dining', 'dine', 'cafe',
+                   'cafeteria', 'catering', 'bistro', 'grill', 'bar', 'pub', 'eatery', 'kitchen',
+                   'comida', 'cocina', 'chef', 'menu'],
+
+      // Moving & Storage
+      moving: ['moving', 'mover', 'movers', 'move', 'relocation', 'relocate', 'mudanza', 'mudanzas',
+               'hauling', 'transport', 'packing', 'pack', 'load', 'unload', 'truck', 'van', 'fletes'],
+
+      storage: ['storage', 'storages', 'self storage', 'self-storage', 'almacen', 'almacenamiento',
+                'warehouse', 'unit', 'mini storage', 'climate control', 'bodega', 'guardamuebles']
     };
 
     for (const industry of selectedIndustries) {
