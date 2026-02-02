@@ -194,6 +194,284 @@
   }
 
   /**
+   * UNIVERSAL DATA EXTRACTION - Searches entire page for contact info
+   * This is used to enrich data from platform-specific extractors
+   */
+  function universalExtract() {
+    const info = {
+      name: '',
+      email: '',
+      phone: '',
+      website: '',
+      address: ''
+    };
+
+    const pageText = document.body.innerText || '';
+    const pageHtml = document.body.innerHTML || '';
+
+    // ========== NAME EXTRACTION ==========
+    // Priority 1: Schema.org data
+    const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of schemaScripts) {
+      try {
+        const data = JSON.parse(script.textContent);
+        const biz = Array.isArray(data) ? data.find(d => d.name) : data;
+        if (biz && biz.name) {
+          info.name = biz.name;
+          if (biz.telephone) info.phone = biz.telephone;
+          if (biz.email) info.email = biz.email;
+          if (biz.url && !biz.url.includes(window.location.hostname)) info.website = biz.url;
+          if (biz.address) {
+            info.address = typeof biz.address === 'string' ? biz.address :
+              [biz.address.streetAddress, biz.address.addressLocality, biz.address.addressRegion, biz.address.postalCode]
+                .filter(Boolean).join(', ');
+          }
+          break;
+        }
+      } catch (e) {}
+    }
+
+    // Priority 2: H1 headings
+    if (!info.name) {
+      const h1Elements = document.querySelectorAll('h1');
+      for (const h1 of h1Elements) {
+        const text = h1.textContent.trim();
+        if (text.length > 2 && text.length < 100 && !text.match(/^(home|contact|about|menu|search)/i)) {
+          info.name = text.split('|')[0].split('-')[0].split('–')[0].trim();
+          break;
+        }
+      }
+    }
+
+    // Priority 3: Title tag
+    if (!info.name) {
+      const title = document.querySelector('title');
+      if (title) {
+        info.name = title.textContent.split('|')[0].split('-')[0].split('–')[0].trim();
+      }
+    }
+
+    // Priority 4: og:site_name or og:title
+    if (!info.name) {
+      const ogName = document.querySelector('meta[property="og:site_name"]') ||
+                     document.querySelector('meta[property="og:title"]');
+      if (ogName) {
+        info.name = ogName.content.split('|')[0].split('-')[0].trim();
+      }
+    }
+
+    // ========== PHONE EXTRACTION ==========
+    // Priority 1: tel: links
+    const telLinks = document.querySelectorAll('a[href^="tel:"]');
+    if (telLinks.length > 0) {
+      for (const link of telLinks) {
+        const phone = link.href.replace('tel:', '').replace(/[^\d+()-.\s]/g, '').trim();
+        if (phone.replace(/\D/g, '').length >= 10) {
+          info.phone = phone;
+          break;
+        }
+      }
+    }
+
+    // Priority 2: itemprop="telephone"
+    if (!info.phone) {
+      const telProp = document.querySelector('[itemprop="telephone"]');
+      if (telProp) {
+        info.phone = telProp.textContent.trim();
+      }
+    }
+
+    // Priority 3: Data attributes containing phone
+    if (!info.phone) {
+      const phoneAttrs = document.querySelectorAll('[data-phone], [data-tel], [data-telephone]');
+      for (const el of phoneAttrs) {
+        const phone = el.getAttribute('data-phone') || el.getAttribute('data-tel') || el.getAttribute('data-telephone');
+        if (phone) {
+          info.phone = phone;
+          break;
+        }
+      }
+    }
+
+    // Priority 4: Search in page text with multiple patterns
+    if (!info.phone) {
+      const phonePatterns = [
+        /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
+        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/g,
+        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/g,
+        /1[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/g
+      ];
+      for (const pattern of phonePatterns) {
+        const matches = pageText.match(pattern);
+        if (matches && matches.length > 0) {
+          // Filter out obvious non-phone numbers (like years, zip codes in context)
+          for (const match of matches) {
+            const digits = match.replace(/\D/g, '');
+            if (digits.length >= 10 && digits.length <= 11) {
+              info.phone = match;
+              break;
+            }
+          }
+          if (info.phone) break;
+        }
+      }
+    }
+
+    // ========== EMAIL EXTRACTION ==========
+    // Priority 1: mailto: links
+    const mailLinks = document.querySelectorAll('a[href^="mailto:"]');
+    if (mailLinks.length > 0) {
+      for (const link of mailLinks) {
+        const email = link.href.replace('mailto:', '').split('?')[0].trim();
+        if (email.includes('@') && !email.includes('example') && !email.includes('noreply') &&
+            !email.includes('support@') && !email.includes('info@sentry')) {
+          info.email = email;
+          break;
+        }
+      }
+    }
+
+    // Priority 2: itemprop="email"
+    if (!info.email) {
+      const emailProp = document.querySelector('[itemprop="email"]');
+      if (emailProp) {
+        const email = emailProp.textContent.trim() || emailProp.getAttribute('content');
+        if (email && email.includes('@')) {
+          info.email = email;
+        }
+      }
+    }
+
+    // Priority 3: Search in page text
+    if (!info.email) {
+      const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const matches = pageText.match(emailPattern);
+      if (matches) {
+        const excludeDomains = ['example.com', 'sentry.io', 'facebook.com', 'twitter.com',
+                                'instagram.com', 'linkedin.com', 'google.com', 'youtube.com',
+                                'yelp.com', 'bbb.org', 'noreply', 'no-reply'];
+        for (const email of matches) {
+          const shouldExclude = excludeDomains.some(domain => email.toLowerCase().includes(domain));
+          if (!shouldExclude) {
+            info.email = email;
+            break;
+          }
+        }
+      }
+    }
+
+    // ========== WEBSITE EXTRACTION ==========
+    // Priority 1: itemprop="url" (not current domain)
+    if (!info.website) {
+      const urlProp = document.querySelector('[itemprop="url"]');
+      if (urlProp) {
+        const url = urlProp.href || urlProp.getAttribute('content');
+        if (url && !url.includes(window.location.hostname)) {
+          info.website = url;
+        }
+      }
+    }
+
+    // Priority 2: Look for external links with "website" text
+    if (!info.website) {
+      const links = document.querySelectorAll('a[href^="http"]');
+      const currentHost = window.location.hostname;
+      for (const link of links) {
+        const text = link.textContent.toLowerCase();
+        const href = link.href;
+        if ((text.includes('website') || text.includes('sitio web') || text.includes('visit')) &&
+            !href.includes(currentHost)) {
+          info.website = href;
+          break;
+        }
+      }
+    }
+
+    // Priority 3: Links that look like company domains
+    if (!info.website) {
+      const links = document.querySelectorAll('a[href^="http"]');
+      const currentHost = window.location.hostname;
+      const excludeHosts = ['facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com',
+                            'youtube.com', 'google.com', 'yelp.com', 'bbb.org', 'maps.google',
+                            'pinterest.com', 'tiktok.com', 'x.com', 'apple.com', 'android.com'];
+      for (const link of links) {
+        const href = link.href;
+        try {
+          const url = new URL(href);
+          const isExternal = !url.hostname.includes(currentHost) && !currentHost.includes(url.hostname);
+          const isExcluded = excludeHosts.some(h => url.hostname.includes(h));
+          const textLooksLikeDomain = link.textContent.trim().match(/^[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$/);
+          if (isExternal && !isExcluded && textLooksLikeDomain) {
+            info.website = href;
+            break;
+          }
+        } catch (e) {}
+      }
+    }
+
+    // ========== ADDRESS EXTRACTION ==========
+    // Priority 1: itemprop="address"
+    if (!info.address) {
+      const addressProp = document.querySelector('[itemprop="address"]');
+      if (addressProp) {
+        info.address = addressProp.textContent.replace(/\s+/g, ' ').trim();
+      }
+    }
+
+    // Priority 2: Address patterns in text
+    if (!info.address) {
+      const addressPatterns = [
+        /\d+\s+[A-Za-z0-9\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct|Parkway|Pkwy|Circle|Cir|Place|Pl)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?/gi,
+        /\d+\s+[A-Za-z0-9\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}/gi
+      ];
+      for (const pattern of addressPatterns) {
+        const matches = pageText.match(pattern);
+        if (matches && matches.length > 0) {
+          info.address = matches[0].trim();
+          break;
+        }
+      }
+    }
+
+    // Priority 3: Look for elements with address-related classes
+    if (!info.address) {
+      const addressSelectors = [
+        '.address', '[class*="address"]', '[class*="location"]',
+        'address', '[data-address]', '.street-address'
+      ];
+      for (const sel of addressSelectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          const text = el.textContent.replace(/\s+/g, ' ').trim();
+          if (text.length > 10 && text.length < 200 && text.match(/\d/)) {
+            info.address = text;
+            break;
+          }
+        }
+      }
+    }
+
+    console.log('[Lead Hunter] Universal extraction found:', info);
+    return info;
+  }
+
+  /**
+   * Enrich business info with universal extraction
+   * Only fills in missing fields
+   */
+  function enrichWithUniversal(info) {
+    const universal = universalExtract();
+
+    if (!info.name && universal.name) info.name = universal.name;
+    if (!info.phone && universal.phone) info.phone = universal.phone;
+    if (!info.email && universal.email) info.email = universal.email;
+    if (!info.website && universal.website) info.website = universal.website;
+    if (!info.address && universal.address) info.address = universal.address;
+
+    return info;
+  }
+
+  /**
    * Check for business indicators on generic websites
    */
   function hasBusinessIndicators() {
@@ -231,61 +509,95 @@
 
   /**
    * Extract business information based on platform
+   * Always enriches with universal extraction for missing fields
    */
   function extractBusinessInfo() {
+    let info;
+
     switch (platform) {
       case 'facebook':
-        return extractFacebookBusiness();
+        info = extractFacebookBusiness();
+        break;
       case 'linkedin':
-        return extractLinkedInCompany();
+        info = extractLinkedInCompany();
+        break;
       case 'yelp':
-        return extractYelpBusiness();
+        info = extractYelpBusiness();
+        break;
       case 'google':
-        return extractGoogleBusiness();
+        info = extractGoogleBusiness();
+        break;
       case 'instagram':
-        return extractInstagramBusiness();
+        info = extractInstagramBusiness();
+        break;
       case 'twitter':
-        return extractTwitterBusiness();
+        info = extractTwitterBusiness();
+        break;
       case 'bbb':
-        return extractBBBBusiness();
+        info = extractBBBBusiness();
+        break;
       case 'yellowpages':
-        return extractYellowPagesBusiness();
+        info = extractYellowPagesBusiness();
+        break;
       case 'manta':
-        return extractMantaBusiness();
+        info = extractMantaBusiness();
+        break;
       case 'trustpilot':
-        return extractTrustpilotBusiness();
+        info = extractTrustpilotBusiness();
+        break;
       case 'angi':
-        return extractAngiBusiness();
+        info = extractAngiBusiness();
+        break;
       case 'homeadvisor':
-        return extractHomeAdvisorBusiness();
+        info = extractHomeAdvisorBusiness();
+        break;
       case 'nextdoor':
-        return extractNextdoorBusiness();
+        info = extractNextdoorBusiness();
+        break;
       case 'healthgrades':
-        return extractHealthgradesBusiness();
+        info = extractHealthgradesBusiness();
+        break;
       case 'zocdoc':
-        return extractZocdocBusiness();
+        info = extractZocdocBusiness();
+        break;
       case 'crunchbase':
-        return extractCrunchbaseBusiness();
+        info = extractCrunchbaseBusiness();
+        break;
       case 'zoominfo':
-        return extractZoominfoBusiness();
+        info = extractZoominfoBusiness();
+        break;
       case 'apollo':
-        return extractApolloBusiness();
+        info = extractApolloBusiness();
+        break;
       case 'indeed':
-        return extractIndeedBusiness();
+        info = extractIndeedBusiness();
+        break;
       case 'ziprecruiter':
-        return extractZiprecruiterBusiness();
+        info = extractZiprecruiterBusiness();
+        break;
       case 'reddit':
       case 'quora':
-        return extractForumBusiness();
+        info = extractForumBusiness();
+        break;
       case 'thumbtack':
-        return extractThumbstackBusiness();
+        info = extractThumbstackBusiness();
+        break;
       case 'houzz':
-        return extractHouzzBusiness();
+        info = extractHouzzBusiness();
+        break;
       case 'alignable':
-        return extractAlignableBusiness();
+        info = extractAlignableBusiness();
+        break;
       default:
-        return extractGenericBusiness();
+        info = extractGenericBusiness();
+        break;
     }
+
+    // ALWAYS enrich with universal extraction to fill missing fields
+    info = enrichWithUniversal(info);
+
+    console.log('[Lead Hunter] Final extracted info:', info);
+    return info;
   }
 
   /**
@@ -2539,7 +2851,31 @@
   }
 
   /**
-   * Main scraping function
+   * Wait for page to be fully loaded and stable
+   */
+  async function waitForPageLoad() {
+    // Initial wait
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Wait for any lazy-loaded content
+    let lastHeight = document.body.scrollHeight;
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const currentHeight = document.body.scrollHeight;
+      if (currentHeight === lastHeight) break;
+      lastHeight = currentHeight;
+      attempts++;
+    }
+
+    // Extra wait for AJAX content
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  /**
+   * Main scraping function with retry logic
    */
   async function scrapeIfBusinessPage() {
     // Don't scrape the same URL twice
@@ -2550,8 +2886,10 @@
     const settings = storage.settings || {};
     if (settings.scanning === false) return;
 
-    // Wait for page to load
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('[Lead Hunter] Starting extraction for:', window.location.href);
+
+    // Wait for page to load properly
+    await waitForPageLoad();
 
     // Check if it's a directory page with multiple listings
     if (isDirectoryPage()) {
@@ -2562,11 +2900,13 @@
         let savedCount = 0;
 
         for (const business of listings) {
-          const { matches, industry } = await matchesSelectedIndustries(business);
-          if (matches && business.name) {
+          // Enrich each listing with universal extraction
+          const enrichedBusiness = enrichWithUniversal(business);
+          const { matches, industry } = await matchesSelectedIndustries(enrichedBusiness);
+          if (matches && enrichedBusiness.name) {
             await sendToBackground({
-              ...business,
-              url: business.url || window.location.href
+              ...enrichedBusiness,
+              url: enrichedBusiness.url || window.location.href
             }, industry);
             savedCount++;
             // Small delay between sends to avoid overwhelming
@@ -2590,11 +2930,37 @@
       return;
     }
 
-    const businessInfo = extractBusinessInfo();
+    // Try to extract data - with retry if needed
+    let businessInfo = extractBusinessInfo();
+    let retryCount = 0;
+    const maxRetries = 2;
 
-    // Validate we have useful info
+    // If we got very little data, retry after waiting more
+    while (retryCount < maxRetries) {
+      const hasEnoughData = (businessInfo.name || businessInfo.phone || businessInfo.email);
+      const hasMultipleFields = [businessInfo.name, businessInfo.phone, businessInfo.email, businessInfo.website]
+        .filter(Boolean).length >= 2;
+
+      if (hasEnoughData && hasMultipleFields) break;
+
+      console.log(`[Lead Hunter] Incomplete data, retrying (${retryCount + 1}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      businessInfo = extractBusinessInfo();
+      retryCount++;
+    }
+
+    // Log what we found
+    console.log('[Lead Hunter] Extracted data:', {
+      name: businessInfo.name || '(not found)',
+      phone: businessInfo.phone || '(not found)',
+      email: businessInfo.email || '(not found)',
+      website: businessInfo.website || '(not found)',
+      address: businessInfo.address || '(not found)'
+    });
+
+    // Validate we have useful info (at least one field)
     if (!businessInfo.name && !businessInfo.phone && !businessInfo.email) {
-      console.log('[Lead Hunter] No useful business info found');
+      console.log('[Lead Hunter] No useful business info found after retries');
       return;
     }
 
@@ -2613,7 +2979,8 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', scrapeIfBusinessPage);
   } else {
-    scrapeIfBusinessPage();
+    // Small delay to ensure page is ready
+    setTimeout(scrapeIfBusinessPage, 500);
   }
 
   // Also run on URL changes (SPA navigation)
@@ -2622,7 +2989,7 @@
     if (window.location.href !== lastUrl) {
       lastUrl = window.location.href;
       lastScrapedUrl = ''; // Reset to allow scraping new page
-      setTimeout(scrapeIfBusinessPage, 2000);
+      setTimeout(scrapeIfBusinessPage, 1500);
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
