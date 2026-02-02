@@ -43,14 +43,11 @@ export async function sendToGoogleSheets(lead, sheetsWebhookUrl) {
     platform: lead.platform || '',
     score: lead.score || 0,
     urgency: lead.urgencyLevel || 'medium',
-    leadType: lead.leadType || 'pain',
-    comment: lead.comment || '',
+    leadType: lead.leadType || 'scraped',
     profileUrl: lead.profileUrl || lead.url || '',
     company: lead.company || lead.name || '',
     analysis: typeof lead.analysis === 'object' ? lead.analysis.summary || '' : (lead.analysis || ''),
-    painPoints: (lead.painPoints || []).join(', '),
-    notes: lead.notes || '',
-    contacted: lead.contacted ? 'Yes' : 'No'
+    notes: lead.notes || ''
   };
 
   console.log('[Lead Hunter] Sending to Google Sheets:', { url: sheetsWebhookUrl, lead: lead.name });
@@ -138,16 +135,18 @@ function doPost(e) {
     // Create sheet if doesn't exist
     if (!sheet) {
       sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_NAME);
-      // Add headers
-      sheet.getRange(1, 1, 1, 17).setValues([[
-        'Timestamp', 'Name', 'Phone', 'Email', 'Website', 'Address',
-        'Category', 'Platform', 'Score', 'Urgency', 'Lead Type',
-        'Comment', 'Profile URL', 'Company', 'Analysis', 'Pain Points', 'Notes'
+      // Add headers - matching extension data fields
+      sheet.getRange(1, 1, 1, 14).setValues([[
+        'Fecha', 'Empresa', 'Telefono', 'Email', 'Website', 'Direccion',
+        'Categoria', 'Plataforma', 'Score', 'Urgencia', 'Tipo',
+        'Perfil URL', 'Analisis', 'Notas'
       ]]);
-      sheet.getRange(1, 1, 1, 17).setFontWeight('bold');
+      sheet.getRange(1, 1, 1, 14).setFontWeight('bold');
       sheet.setFrozenRows(1);
       // Format Phone column as plain text
       sheet.getRange('C:C').setNumberFormat('@');
+      // Auto-resize columns
+      sheet.autoResizeColumns(1, 14);
     }
 
     const data = JSON.parse(e.postData.contents);
@@ -158,9 +157,15 @@ function doPost(e) {
       phone = "'" + phone;
     }
 
+    // Format timestamp to readable date
+    let fecha = data.timestamp || new Date().toISOString();
+    try {
+      fecha = new Date(fecha).toLocaleString('es-ES');
+    } catch(e) {}
+
     const row = [
-      data.timestamp || new Date().toISOString(),
-      data.name || '',
+      fecha,
+      data.company || data.name || '',
       phone,
       data.email || '',
       data.website || '',
@@ -169,12 +174,9 @@ function doPost(e) {
       data.platform || '',
       data.score || 0,
       data.urgency || 'medium',
-      data.leadType || 'pain',
-      data.comment || '',
+      data.leadType || 'scraped',
       data.profileUrl || '',
-      data.company || data.name || '',
       data.analysis || '',
-      data.painPoints || '',
       data.notes || ''
     ];
 
