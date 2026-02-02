@@ -276,7 +276,7 @@ class PopupController {
     // Manual Lead Form
     document.getElementById('addManualLead').addEventListener('click', () => this.showAddLeadModal());
     document.getElementById('closeAddLeadModal').addEventListener('click', () => this.closeAddLeadModal());
-    document.getElementById('cancelAddLead').addEventListener('click', () => this.closeAddLeadModal());
+    document.getElementById('cancelAddLead').addEventListener('click', () => this.closeAddLeadModal(true));
     document.getElementById('manualLeadForm').addEventListener('submit', (e) => this.saveManualLead(e));
     document.getElementById('addLeadModal').addEventListener('click', (e) => {
       if (e.target.id === 'addLeadModal') this.closeAddLeadModal();
@@ -681,15 +681,83 @@ class PopupController {
 
   // ==================== MANUAL LEAD FUNCTIONS ====================
 
-  showAddLeadModal() {
-    // Clear the form
-    document.getElementById('manualLeadForm').reset();
+  async showAddLeadModal() {
+    // Restore saved form data (in case popup was closed while filling)
+    await this.restoreManualLeadForm();
     // Show the modal
     document.getElementById('addLeadModal').classList.add('active');
+    // Setup auto-save listeners
+    this.setupManualLeadAutoSave();
   }
 
-  closeAddLeadModal() {
+  closeAddLeadModal(clearData = false) {
     document.getElementById('addLeadModal').classList.remove('active');
+    // Only clear saved data if explicitly requested (Cancel button or successful save)
+    if (clearData) {
+      this.clearManualLeadDraft();
+      document.getElementById('manualLeadForm').reset();
+    }
+  }
+
+  setupManualLeadAutoSave() {
+    const fields = ['manualName', 'manualPhone', 'manualEmail', 'manualWebsite', 'manualAddress', 'manualCategory', 'manualNotes'];
+
+    fields.forEach(fieldId => {
+      const element = document.getElementById(fieldId);
+      if (element && !element.dataset.autoSaveSetup) {
+        element.dataset.autoSaveSetup = 'true';
+        element.addEventListener('input', () => this.autoSaveManualLeadForm());
+        element.addEventListener('change', () => this.autoSaveManualLeadForm());
+      }
+    });
+  }
+
+  async autoSaveManualLeadForm() {
+    const formData = {
+      name: document.getElementById('manualName').value,
+      phone: document.getElementById('manualPhone').value,
+      email: document.getElementById('manualEmail').value,
+      website: document.getElementById('manualWebsite').value,
+      address: document.getElementById('manualAddress').value,
+      category: document.getElementById('manualCategory').value,
+      notes: document.getElementById('manualNotes').value,
+      savedAt: Date.now()
+    };
+
+    await chrome.storage.local.set({ manualLeadDraft: formData });
+    console.log('[Lead Hunter] Auto-saved manual lead form');
+  }
+
+  async restoreManualLeadForm() {
+    try {
+      const result = await chrome.storage.local.get(['manualLeadDraft']);
+      const draft = result.manualLeadDraft;
+
+      if (draft && draft.savedAt) {
+        // Only restore if draft is less than 24 hours old
+        const hoursSinceSave = (Date.now() - draft.savedAt) / (1000 * 60 * 60);
+        if (hoursSinceSave < 24) {
+          document.getElementById('manualName').value = draft.name || '';
+          document.getElementById('manualPhone').value = draft.phone || '';
+          document.getElementById('manualEmail').value = draft.email || '';
+          document.getElementById('manualWebsite').value = draft.website || '';
+          document.getElementById('manualAddress').value = draft.address || '';
+          document.getElementById('manualCategory').value = draft.category || '';
+          document.getElementById('manualNotes').value = draft.notes || '';
+          console.log('[Lead Hunter] Restored manual lead form draft');
+        } else {
+          // Draft too old, clear it
+          this.clearManualLeadDraft();
+        }
+      }
+    } catch (e) {
+      console.log('[Lead Hunter] No draft to restore');
+    }
+  }
+
+  async clearManualLeadDraft() {
+    await chrome.storage.local.remove(['manualLeadDraft']);
+    console.log('[Lead Hunter] Cleared manual lead form draft');
   }
 
   async saveManualLead(e) {
@@ -750,8 +818,8 @@ class PopupController {
       console.log('Background notification failed:', e);
     }
 
-    // Close modal
-    this.closeAddLeadModal();
+    // Close modal AND clear the draft (successful save)
+    this.closeAddLeadModal(true);
 
     // Show success message
     this.showToast(t('leadSaved', this.currentLanguage) || 'Lead saved successfully!', 'success');
