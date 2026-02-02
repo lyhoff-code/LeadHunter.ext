@@ -50,9 +50,10 @@
     if (host.includes('indeed.com')) return 'indeed';
     if (host.includes('ziprecruiter.com')) return 'ziprecruiter';
 
-    // Q&A / Forums
+    // Q&A / Forums / Business Articles
     if (host.includes('reddit.com')) return 'reddit';
     if (host.includes('quora.com')) return 'quora';
+    if (host.includes('chron.com')) return 'chron';
 
     // Maps
     if (host.includes('google.com')) return 'google';
@@ -176,6 +177,12 @@
       case 'quora':
         // Quora - similar approach
         return document.body.innerText.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) ||
+               (document.body.innerText.includes('@') && document.body.innerText.includes('.com'));
+
+      case 'chron':
+        // Chron.com small business articles - look for business contact info
+        return path.includes('/smallbusiness/') ||
+               document.body.innerText.match(/\d{3}[-.\s]?\d{3}[-.\s]?\d{4}/) ||
                (document.body.innerText.includes('@') && document.body.innerText.includes('.com'));
 
       case 'thumbtack':
@@ -577,6 +584,7 @@
         break;
       case 'reddit':
       case 'quora':
+      case 'chron':
         info = extractForumBusiness();
         break;
       case 'thumbtack':
