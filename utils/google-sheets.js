@@ -20,10 +20,22 @@ export async function sendToGoogleSheets(lead, sheetsWebhookUrl) {
     throw new Error('Invalid Google Sheets URL - must be a script.google.com URL');
   }
 
+  // Format phone as text to avoid #ERROR! in Google Sheets
+  const formatPhone = (phone) => {
+    if (!phone) return '';
+    // Remove any formula-like characters and format as plain text
+    let cleaned = String(phone).trim();
+    // If starts with + or = or -, prefix with apostrophe for Sheets
+    if (cleaned.match(/^[+=\-@]/)) {
+      cleaned = "'" + cleaned;
+    }
+    return cleaned;
+  };
+
   const row = {
     timestamp: new Date().toISOString(),
     name: lead.name || '',
-    phone: lead.phone || '',
+    phone: formatPhone(lead.phone),
     email: lead.email || '',
     website: lead.website || '',
     address: lead.address || '',
@@ -34,7 +46,7 @@ export async function sendToGoogleSheets(lead, sheetsWebhookUrl) {
     leadType: lead.leadType || 'pain',
     comment: lead.comment || '',
     profileUrl: lead.profileUrl || lead.url || '',
-    company: lead.company || '',
+    company: lead.company || lead.name || '',
     analysis: typeof lead.analysis === 'object' ? lead.analysis.summary || '' : (lead.analysis || ''),
     painPoints: (lead.painPoints || []).join(', '),
     notes: lead.notes || '',
@@ -117,7 +129,7 @@ export function generateAppsScriptCode() {
 // 7. Click Deploy and copy the URL
 // 8. Paste the URL in Lead Hunter extension settings
 
-const SHEET_NAME = 'Leads'; // Change if needed
+const SHEET_NAME = 'Leads';
 
 function doPost(e) {
   try {
@@ -134,14 +146,22 @@ function doPost(e) {
       ]]);
       sheet.getRange(1, 1, 1, 17).setFontWeight('bold');
       sheet.setFrozenRows(1);
+      // Format Phone column as plain text
+      sheet.getRange('C:C').setNumberFormat('@');
     }
 
     const data = JSON.parse(e.postData.contents);
 
+    // Clean phone to avoid formula errors
+    let phone = String(data.phone || '');
+    if (phone.match(/^[+=\\-@]/)) {
+      phone = "'" + phone;
+    }
+
     const row = [
       data.timestamp || new Date().toISOString(),
       data.name || '',
-      data.phone || '',
+      phone,
       data.email || '',
       data.website || '',
       data.address || '',
@@ -152,7 +172,7 @@ function doPost(e) {
       data.leadType || 'pain',
       data.comment || '',
       data.profileUrl || '',
-      data.company || '',
+      data.company || data.name || '',
       data.analysis || '',
       data.painPoints || '',
       data.notes || ''
