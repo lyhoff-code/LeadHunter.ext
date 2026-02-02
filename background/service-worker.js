@@ -131,6 +131,14 @@ async function handleMessage(message, sender) {
     case 'BUSINESS_SCRAPED':
       return await handleScrapedBusiness(message.data);
 
+    case 'MANUAL_LEAD_ADDED':
+      // Manual leads added from popup - send to integrations
+      console.log('[Lead Hunter] Manual lead added, sending to integrations:', message.lead?.name);
+      if (message.lead) {
+        await autoSendIntegrations(message.lead);
+      }
+      return { success: true };
+
     case 'ANALYZE_IMAGE':
       return await handleImageAnalysis(message.imageUrl, message.context);
 
@@ -312,40 +320,72 @@ async function analyzeComment(data) {
 
 // Auto-send to integrations
 async function autoSendIntegrations(lead) {
+  // Reload settings to ensure we have latest
+  await loadSettings();
+
+  console.log('[Lead Hunter] Auto-send integrations check:', {
+    leadName: lead.name,
+    autoSendSheets: settings.autoSendSheets,
+    hasGoogleSheetsUrl: !!settings.googleSheetsUrl,
+    googleSheetsUrl: settings.googleSheetsUrl ? settings.googleSheetsUrl.substring(0, 50) + '...' : 'NOT SET',
+    autoSendHubspot: settings.autoSendHubspot,
+    autoSendWebhook: settings.autoSendWebhook
+  });
+
   const promises = [];
 
   if (settings.autoSendHubspot && settings.hubspotKey) {
+    console.log('[Lead Hunter] Sending to HubSpot...');
     promises.push(
       sendToHubSpot(lead, settings.hubspotKey)
         .then(result => {
           lead.sentToHubspot = true;
           lead.hubspotId = result.id;
           updateLeadInStorage(lead);
-          console.log('HubSpot auto-send success:', result.id);
+          console.log('[Lead Hunter] HubSpot auto-send success:', result.id);
         })
-        .catch(e => console.error('HubSpot auto-send error:', e))
+        .catch(e => console.error('[Lead Hunter] HubSpot auto-send error:', e))
     );
   }
 
   if (settings.autoSendWebhook && settings.webhookUrl) {
+    console.log('[Lead Hunter] Sending to Webhook...');
     promises.push(
-      sendToWebhook(lead, settings.webhookUrl).catch(e => console.error('Webhook auto-send error:', e))
+      sendToWebhook(lead, settings.webhookUrl).catch(e => console.error('[Lead Hunter] Webhook auto-send error:', e))
     );
   }
 
   if (settings.autoSendSheets && settings.googleSheetsUrl) {
+    console.log('[Lead Hunter] Sending to Google Sheets...', settings.googleSheetsUrl);
     promises.push(
-      sendToGoogleSheets(lead, settings.googleSheetsUrl).catch(e => console.error('Sheets auto-send error:', e))
+      sendToGoogleSheets(lead, settings.googleSheetsUrl)
+        .then(result => {
+          lead.sentToSheets = true;
+          updateLeadInStorage(lead);
+          console.log('[Lead Hunter] Google Sheets auto-send success!');
+        })
+        .catch(e => console.error('[Lead Hunter] Sheets auto-send error:', e.message))
     );
+  } else {
+    console.log('[Lead Hunter] Google Sheets NOT enabled or URL not set:', {
+      autoSendSheets: settings.autoSendSheets,
+      hasUrl: !!settings.googleSheetsUrl
+    });
   }
 
   if (settings.autoFindEmail && settings.hunterKey && lead.profileUrl) {
+    console.log('[Lead Hunter] Finding email with Hunter.io...');
     promises.push(
-      enrichLeadWithEmail(lead).catch(e => console.error('Email auto-find error:', e))
+      enrichLeadWithEmail(lead).catch(e => console.error('[Lead Hunter] Email auto-find error:', e))
     );
   }
 
-  await Promise.all(promises);
+  if (promises.length > 0) {
+    await Promise.all(promises);
+    console.log('[Lead Hunter] All auto-send integrations completed');
+  } else {
+    console.log('[Lead Hunter] No integrations enabled');
+  }
 }
 
 // Update lead in storage
