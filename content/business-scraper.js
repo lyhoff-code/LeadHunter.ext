@@ -126,7 +126,11 @@
         return isProfilePage && hasTwitterContact;
 
       case 'bbb':
-        return path.includes('/profile/');
+        // BBB business profiles - multiple URL patterns
+        return path.includes('/profile/') ||
+               path.includes('/business-reviews/') ||
+               path.includes('/accredited-business/') ||
+               (path.match(/\/us\/[a-z]{2}\/[^\/]+\//) && document.querySelector('h1'));
 
       case 'yellowpages':
         return path.includes('/mip/') || (path.match(/\/[^\/]+\/[^\/]+/) && document.querySelector('.business-name'));
@@ -1423,6 +1427,7 @@
 
   /**
    * Extract from BBB Business Profile
+   * Updated for BBB's modern website structure
    */
   function extractBBBBusiness() {
     const info = {
@@ -1436,121 +1441,253 @@
       accredited: false
     };
 
-    // Business name
-    const nameSelectors = [
-      '.bds-h2.text-size-5',
-      'h1.bds-h1',
-      '.dtm-business-name',
-      'h1',
-      '[class*="business-name"]'
-    ];
-    for (const sel of nameSelectors) {
-      const el = document.querySelector(sel);
-      if (el && el.textContent.trim().length > 1) {
-        info.name = el.textContent.trim();
-        break;
+    const pageText = document.body.innerText || '';
+    const pageHtml = document.body.innerHTML || '';
+
+    // ========== SCHEMA.ORG DATA (Priority 1) ==========
+    // BBB often includes structured data
+    const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of schemaScripts) {
+      try {
+        const data = JSON.parse(script.textContent);
+        const biz = Array.isArray(data) ? data.find(d => d['@type'] === 'LocalBusiness' || d['@type'] === 'Organization' || d.name) : data;
+        if (biz) {
+          if (biz.name && !info.name) info.name = biz.name;
+          if (biz.telephone && !info.phone) info.phone = biz.telephone;
+          if (biz.email && !info.email) info.email = biz.email;
+          if (biz.url && !info.website) info.website = biz.url;
+          if (biz.address) {
+            if (typeof biz.address === 'string') {
+              info.address = biz.address;
+            } else if (biz.address.streetAddress) {
+              info.address = [
+                biz.address.streetAddress,
+                biz.address.addressLocality,
+                biz.address.addressRegion,
+                biz.address.postalCode
+              ].filter(Boolean).join(', ');
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    // ========== BUSINESS NAME ==========
+    if (!info.name) {
+      // Try multiple approaches for name
+      const nameSelectors = [
+        'h1',
+        '[data-testid="business-name"]',
+        '[class*="BusinessName"]',
+        '[class*="business-name"]',
+        'header h1',
+        'main h1',
+        '.bds-h1',
+        '.bds-h2'
+      ];
+      for (const sel of nameSelectors) {
+        const el = document.querySelector(sel);
+        if (el && el.textContent.trim().length > 1 && el.textContent.trim().length < 200) {
+          // Avoid navigation/footer text
+          const text = el.textContent.trim();
+          if (!text.toLowerCase().includes('better business bureau') &&
+              !text.toLowerCase().includes('bbb') === false &&
+              !text.includes('Search') && !text.includes('Menu')) {
+            info.name = text.split('\n')[0].trim(); // Take first line if multi-line
+            break;
+          }
+        }
       }
     }
 
-    // Phone - BBB usually has phone in contact section
-    const phoneLink = document.querySelector('a[href^="tel:"]');
-    if (phoneLink) {
-      info.phone = phoneLink.href.replace('tel:', '').trim();
-    } else {
-      const pageText = document.body.innerText;
-      const phonePatterns = [
-        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
-        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
-      ];
-      for (const pattern of phonePatterns) {
-        const match = pageText.match(pattern);
-        if (match) {
-          info.phone = match[0];
+    // ========== PHONE ==========
+    if (!info.phone) {
+      // Look for tel: links
+      const phoneLinks = document.querySelectorAll('a[href^="tel:"]');
+      for (const link of phoneLinks) {
+        const phone = link.href.replace('tel:', '').replace(/\D/g, '');
+        if (phone.length >= 10) {
+          info.phone = link.textContent.trim() || link.href.replace('tel:', '');
           break;
         }
       }
     }
 
-    // Website
-    const websiteSelectors = [
-      'a[href*="bbbclick"][data-link-type="website"]',
-      '.dtm-url a',
-      'a.website-link',
-      'a[data-tracking*="website"]'
-    ];
-    for (const sel of websiteSelectors) {
-      const el = document.querySelector(sel);
-      if (el) {
-        // BBB uses redirect links, try to get the display URL
-        const displayUrl = el.textContent.trim();
-        if (displayUrl && displayUrl.includes('.')) {
-          info.website = displayUrl.startsWith('http') ? displayUrl : 'https://' + displayUrl;
-        } else if (el.href) {
-          info.website = el.href;
+    // Fallback: regex search in page text
+    if (!info.phone) {
+      const phonePatterns = [
+        /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g
+      ];
+      for (const pattern of phonePatterns) {
+        const matches = pageText.match(pattern);
+        if (matches) {
+          // Find first valid phone (10+ digits)
+          for (const match of matches) {
+            const digits = match.replace(/\D/g, '');
+            if (digits.length >= 10) {
+              info.phone = match;
+              break;
+            }
+          }
+          if (info.phone) break;
         }
-        break;
       }
     }
 
-    // Address
-    const addressSelectors = [
-      '.dtm-address',
-      'address',
-      '.bds-body.text-size-5[class*="address"]',
-      '[class*="address-line"]'
-    ];
-    const addressParts = [];
-    for (const sel of addressSelectors) {
-      const el = document.querySelector(sel);
-      if (el) {
-        info.address = el.textContent.replace(/\s+/g, ' ').trim();
-        break;
+    // ========== WEBSITE ==========
+    if (!info.website) {
+      // Look for website links - BBB often displays the URL as text
+      const allLinks = document.querySelectorAll('a[href]');
+      for (const link of allLinks) {
+        const href = link.href;
+        const text = link.textContent.trim().toLowerCase();
+
+        // Skip BBB internal links
+        if (href.includes('bbb.org')) continue;
+
+        // Check if link text looks like a website
+        if (text.match(/^(www\.)?[a-z0-9-]+\.[a-z]{2,}$/i) ||
+            text.includes('visit website') ||
+            text.includes('website') ||
+            link.getAttribute('data-link-type') === 'website') {
+
+          // Extract the actual website from displayed text or href
+          if (text.match(/^(www\.)?[a-z0-9-]+\.[a-z]{2,}$/i)) {
+            info.website = text.startsWith('http') ? text : 'https://' + text;
+          } else if (!href.includes('bbb.org')) {
+            info.website = href;
+          }
+          break;
+        }
       }
     }
 
-    // If no address from selectors, search in page text
+    // Fallback: look for URL patterns in page text
+    if (!info.website) {
+      const urlMatch = pageText.match(/(?:Visit Website[:\s]*)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/i);
+      if (urlMatch && !urlMatch[0].includes('bbb.org') && !urlMatch[0].includes('google') && !urlMatch[0].includes('facebook')) {
+        const url = urlMatch[1] || urlMatch[0];
+        info.website = url.startsWith('http') ? url : 'https://' + url.replace(/^www\./, 'www.');
+      }
+    }
+
+    // ========== ADDRESS ==========
     if (!info.address) {
-      const pageText = document.body.innerText;
-      const addressMatch = pageText.match(/\d+\s+[A-Za-z]+\s+(St|Street|Rd|Road|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Ln|Lane)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}/i);
-      if (addressMatch) {
-        info.address = addressMatch[0];
+      // Look for address element
+      const addressEl = document.querySelector('address');
+      if (addressEl) {
+        info.address = addressEl.textContent.replace(/\s+/g, ' ').trim();
       }
     }
 
-    // Category/Business Type
-    const categorySelectors = [
-      '.dtm-category a',
-      '.business-categories a',
-      '[class*="category"] a',
-      'dd[class*="category"]'
+    if (!info.address) {
+      // Look for elements with address-like content
+      const addressSelectors = [
+        '[class*="address"]',
+        '[class*="Address"]',
+        '[data-testid*="address"]',
+        '[itemprop="address"]'
+      ];
+      for (const sel of addressSelectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          const text = el.textContent.replace(/\s+/g, ' ').trim();
+          // Verify it looks like an address (has numbers and state abbreviation)
+          if (text.match(/\d+.*[A-Z]{2}\s*\d{5}/) || text.match(/\d+\s+[A-Za-z]+/)) {
+            info.address = text;
+            break;
+          }
+        }
+      }
+    }
+
+    // Fallback: regex search for address pattern
+    if (!info.address) {
+      const addressPatterns = [
+        /\d+\s+[A-Za-z0-9\s]+(?:St|Street|Rd|Road|Ave|Avenue|Blvd|Boulevard|Dr|Drive|Ln|Lane|Way|Ct|Court|Cir|Circle|Pl|Place)[,.\s]+[A-Za-z\s]+,?\s*[A-Z]{2}\s*\d{5}(-\d{4})?/i,
+        /\d+\s+[A-Za-z0-9\s,]+[A-Z]{2}\s+\d{5}/i
+      ];
+      for (const pattern of addressPatterns) {
+        const match = pageText.match(pattern);
+        if (match) {
+          info.address = match[0].replace(/\s+/g, ' ').trim();
+          break;
+        }
+      }
+    }
+
+    // ========== CATEGORY ==========
+    if (!info.category) {
+      // Look for category links or text
+      const categorySelectors = [
+        '[class*="category"] a',
+        '[class*="Category"] a',
+        '[data-testid*="category"]',
+        'a[href*="/category/"]',
+        'a[href*="/search?"]'
+      ];
+      for (const sel of categorySelectors) {
+        const el = document.querySelector(sel);
+        if (el && el.textContent.trim()) {
+          info.category = el.textContent.trim();
+          break;
+        }
+      }
+    }
+
+    // Fallback: look for "Primary Category:" or similar labels
+    if (!info.category) {
+      const categoryMatch = pageText.match(/(?:Primary Category|Business Category|Type of Entity|Industry)[:\s]+([A-Za-z\s,&-]+)/i);
+      if (categoryMatch) {
+        info.category = categoryMatch[1].trim().split('\n')[0];
+      }
+    }
+
+    // ========== EMAIL ==========
+    if (!info.email) {
+      // Look for mailto links first
+      const mailtoLinks = document.querySelectorAll('a[href^="mailto:"]');
+      for (const link of mailtoLinks) {
+        const email = link.href.replace('mailto:', '').split('?')[0];
+        if (!email.includes('bbb.org') && !email.includes('example')) {
+          info.email = email;
+          break;
+        }
+      }
+    }
+
+    // Fallback: regex search for email
+    if (!info.email) {
+      const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const matches = pageText.match(emailPattern);
+      if (matches) {
+        for (const email of matches) {
+          if (!email.includes('bbb.org') && !email.includes('example') && !email.includes('sentry')) {
+            info.email = email;
+            break;
+          }
+        }
+      }
+    }
+
+    // ========== RATING ==========
+    const ratingPatterns = [
+      /BBB Rating[:\s]*([A-F][+-]?)/i,
+      /Rating[:\s]*([A-F][+-]?)/i
     ];
-    for (const sel of categorySelectors) {
-      const el = document.querySelector(sel);
-      if (el && el.textContent.trim()) {
-        info.category = el.textContent.trim();
+    for (const pattern of ratingPatterns) {
+      const match = pageText.match(pattern);
+      if (match) {
+        info.rating = match[1];
         break;
       }
     }
 
-    // Rating
-    const ratingEl = document.querySelector('.dtm-rating') ||
-                     document.querySelector('[class*="letter-grade"]') ||
-                     document.querySelector('.bds-rating');
-    if (ratingEl) {
-      info.rating = ratingEl.textContent.trim();
-    }
-
-    // Accreditation status
-    const accreditedEl = document.querySelector('.dtm-accredited') ||
-                         document.body.innerText.match(/BBB Accredited/i);
-    info.accredited = !!accreditedEl;
-
-    // Email from page text
-    const pageText = document.body.innerText;
-    const emailMatch = pageText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-    if (emailMatch && !emailMatch[0].includes('bbb.org') && !emailMatch[0].includes('example')) {
-      info.email = emailMatch[0];
-    }
+    // ========== ACCREDITATION ==========
+    info.accredited = pageText.toLowerCase().includes('bbb accredited') ||
+                      pageText.toLowerCase().includes('accredited business') ||
+                      !!document.querySelector('[class*="accredited"]') ||
+                      !!document.querySelector('img[alt*="Accredited"]');
 
     console.log('[Lead Hunter] Extracted BBB business:', info);
     return info;
