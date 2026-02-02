@@ -16,18 +16,22 @@ export async function sendToGoogleSheets(lead, sheetsWebhookUrl) {
   const row = {
     timestamp: new Date().toISOString(),
     name: lead.name || '',
+    phone: lead.phone || '',
+    email: lead.email || '',
+    website: lead.website || '',
+    address: lead.address || '',
+    category: lead.category || lead.industry || '',
     platform: lead.platform || '',
     score: lead.score || 0,
     urgency: lead.urgencyLevel || 'medium',
+    leadType: lead.leadType || 'pain',
     comment: lead.comment || '',
-    profileUrl: lead.profileUrl || '',
-    email: lead.email || '',
+    profileUrl: lead.profileUrl || lead.url || '',
     company: lead.company || '',
-    analysis: lead.analysis || '',
+    analysis: typeof lead.analysis === 'object' ? lead.analysis.summary || '' : (lead.analysis || ''),
     painPoints: (lead.painPoints || []).join(', '),
-    messageDraft: lead.messageDraft || '',
-    contacted: lead.contacted ? 'Yes' : 'No',
-    isBusinessOwner: lead.isBusinessOwner ? 'Yes' : 'Unknown'
+    notes: lead.notes || '',
+    contacted: lead.contacted ? 'Yes' : 'No'
   };
 
   try {
@@ -71,18 +75,19 @@ const SHEET_NAME = 'Leads'; // Change if needed
 
 function doPost(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+    let sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
 
     // Create sheet if doesn't exist
     if (!sheet) {
-      const newSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_NAME);
+      sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_NAME);
       // Add headers
-      newSheet.getRange(1, 1, 1, 14).setValues([[
-        'Timestamp', 'Name', 'Platform', 'Score', 'Urgency',
-        'Comment', 'Profile URL', 'Email', 'Company',
-        'Analysis', 'Pain Points', 'Message Draft', 'Contacted', 'Business Owner'
+      sheet.getRange(1, 1, 1, 17).setValues([[
+        'Timestamp', 'Name', 'Phone', 'Email', 'Website', 'Address',
+        'Category', 'Platform', 'Score', 'Urgency', 'Lead Type',
+        'Comment', 'Profile URL', 'Company', 'Analysis', 'Pain Points', 'Notes'
       ]]);
-      newSheet.getRange(1, 1, 1, 14).setFontWeight('bold');
+      sheet.getRange(1, 1, 1, 17).setFontWeight('bold');
+      sheet.setFrozenRows(1);
     }
 
     const data = JSON.parse(e.postData.contents);
@@ -90,22 +95,24 @@ function doPost(e) {
     const row = [
       data.timestamp || new Date().toISOString(),
       data.name || '',
+      data.phone || '',
+      data.email || '',
+      data.website || '',
+      data.address || '',
+      data.category || '',
       data.platform || '',
       data.score || 0,
       data.urgency || 'medium',
+      data.leadType || 'pain',
       data.comment || '',
       data.profileUrl || '',
-      data.email || '',
       data.company || '',
       data.analysis || '',
       data.painPoints || '',
-      data.messageDraft || '',
-      data.contacted || 'No',
-      data.isBusinessOwner || 'Unknown'
+      data.notes || ''
     ];
 
-    const targetSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-    targetSheet.appendRow(row);
+    sheet.appendRow(row);
 
     return ContentService
       .createTextOutput(JSON.stringify({ success: true }))
@@ -133,25 +140,30 @@ function doGet(e) {
  */
 export function exportToCSV(leads) {
   const headers = [
-    'Timestamp', 'Name', 'Platform', 'Score', 'Urgency',
-    'Comment', 'Profile URL', 'Email', 'Company',
-    'Analysis', 'Pain Points', 'Contacted', 'Business Owner'
+    'Timestamp', 'Name', 'Phone', 'Email', 'Website', 'Address',
+    'Category', 'Platform', 'Score', 'Urgency', 'Lead Type',
+    'Comment', 'Profile URL', 'Company', 'Analysis', 'Pain Points', 'Notes', 'Contacted'
   ];
 
   const rows = leads.map(lead => [
     lead.timestamp || '',
     escapeCsvField(lead.name || ''),
+    lead.phone || '',
+    lead.email || '',
+    lead.website || '',
+    escapeCsvField(lead.address || ''),
+    lead.category || lead.industry || '',
     lead.platform || '',
     lead.score || 0,
     lead.urgencyLevel || 'medium',
+    lead.leadType || 'pain',
     escapeCsvField(lead.comment || ''),
-    lead.profileUrl || '',
-    lead.email || '',
+    lead.profileUrl || lead.url || '',
     lead.company || '',
-    escapeCsvField(lead.analysis || ''),
+    escapeCsvField(typeof lead.analysis === 'object' ? lead.analysis.summary || '' : (lead.analysis || '')),
     escapeCsvField((lead.painPoints || []).join('; ')),
-    lead.contacted ? 'Yes' : 'No',
-    lead.isBusinessOwner ? 'Yes' : 'Unknown'
+    escapeCsvField(lead.notes || ''),
+    lead.contacted ? 'Yes' : 'No'
   ]);
 
   const csv = [
