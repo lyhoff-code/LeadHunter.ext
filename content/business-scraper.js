@@ -1010,43 +1010,138 @@
       website: '',
       address: '',
       category: '',
+      description: '',
       rating: '',
       reviewCount: ''
     };
 
-    // Business name
-    const nameEl = document.querySelector('h1[class*="heading"]') ||
-                   document.querySelector('h1');
-    if (nameEl) info.name = nameEl.textContent.trim();
-
-    // Phone
-    const phoneEl = document.querySelector('a[href^="tel:"]') ||
-                    document.querySelector('p[class*="phone"]');
-    if (phoneEl) {
-      info.phone = phoneEl.href ? phoneEl.href.replace('tel:', '') : phoneEl.textContent.trim();
+    // Business name - multiple selectors for different Yelp layouts
+    const nameSelectors = [
+      'h1[class*="heading"]',
+      'h1[class*="businessName"]',
+      'h1[data-testid="bizName"]',
+      '[class*="biz-page-title"]',
+      '.biz-page-header h1',
+      'h1'
+    ];
+    for (const sel of nameSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim()) {
+        info.name = el.textContent.trim();
+        break;
+      }
     }
 
-    // Website
-    const websiteEl = document.querySelector('a[href*="/biz_redir"]') ||
-                      document.querySelector('a[class*="website"]');
-    if (websiteEl) info.website = websiteEl.href;
+    // Phone - multiple approaches
+    const phoneEl = document.querySelector('a[href^="tel:"]');
+    if (phoneEl) {
+      info.phone = phoneEl.href.replace('tel:', '').trim();
+    } else {
+      // Try to find phone in page text
+      const phonePattern = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
+      const pageText = document.body.innerText;
+      const phoneMatch = pageText.match(phonePattern);
+      if (phoneMatch) info.phone = phoneMatch[0];
+    }
 
-    // Address
-    const addressEl = document.querySelector('address') ||
-                      document.querySelector('p[class*="address"]');
-    if (addressEl) info.address = addressEl.textContent.trim();
+    // Website - multiple selectors
+    const websiteSelectors = [
+      'a[href*="/biz_redir"]',
+      'a[class*="website"]',
+      'a[href*="redirect_url"]',
+      'p[class*="website"] a',
+      '[data-testid="biz-website"] a'
+    ];
+    for (const sel of websiteSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.href && !el.href.includes('yelp.com')) {
+        info.website = el.href;
+        break;
+      }
+    }
 
-    // Category
-    const categoryLinks = document.querySelectorAll('a[href*="/search?find_desc="]');
-    if (categoryLinks.length > 0) {
-      info.category = Array.from(categoryLinks).map(a => a.textContent.trim()).join(', ');
+    // Address - multiple selectors
+    const addressSelectors = [
+      'address',
+      'p[class*="address"]',
+      '[class*="street-address"]',
+      '[data-testid="biz-address"]',
+      '[class*="directions"] + *'
+    ];
+    for (const sel of addressSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim()) {
+        info.address = el.textContent.trim().replace(/\s+/g, ' ');
+        break;
+      }
+    }
+
+    // Category - IMPROVED with multiple selectors
+    const categorySelectors = [
+      'a[href*="/search?find_desc="]',
+      'a[href*="/c/"]',
+      'span[class*="category"]',
+      '[class*="categories"] a',
+      '[data-testid="biz-categories"] a',
+      '.biz-page-header a[href*="/search"]',
+      // Breadcrumbs often contain category
+      'nav[aria-label="Breadcrumb"] a',
+      '[class*="breadcrumb"] a'
+    ];
+
+    const categories = new Set();
+    for (const sel of categorySelectors) {
+      const elements = document.querySelectorAll(sel);
+      for (const el of elements) {
+        const text = el.textContent.trim();
+        // Filter out non-category links
+        if (text && text.length > 2 && text.length < 50 &&
+            !text.toLowerCase().includes('yelp') &&
+            !text.toLowerCase().includes('write a review') &&
+            !text.toLowerCase().includes('home')) {
+          categories.add(text);
+        }
+      }
+    }
+    if (categories.size > 0) {
+      info.category = Array.from(categories).slice(0, 3).join(', ');
+    }
+
+    // Description - from about section or meta
+    const descSelectors = [
+      '[class*="from-the-business"] p',
+      '[class*="about"] p',
+      'meta[name="description"]',
+      'meta[property="og:description"]'
+    ];
+    for (const sel of descSelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = el.content || el.textContent;
+        if (text && text.trim().length > 20) {
+          info.description = text.trim().substring(0, 500);
+          break;
+        }
+      }
     }
 
     // Rating
     const ratingEl = document.querySelector('[aria-label*="star rating"]') ||
-                     document.querySelector('[class*="rating"]');
-    if (ratingEl) info.rating = ratingEl.getAttribute('aria-label') || ratingEl.textContent.trim();
+                     document.querySelector('[class*="rating"]') ||
+                     document.querySelector('[class*="stars"]');
+    if (ratingEl) {
+      info.rating = ratingEl.getAttribute('aria-label') || ratingEl.textContent.trim();
+    }
 
+    // Review count
+    const reviewEl = document.querySelector('[class*="review-count"]') ||
+                     document.querySelector('a[href="#reviews"]');
+    if (reviewEl) {
+      const reviewMatch = reviewEl.textContent.match(/(\d+)/);
+      if (reviewMatch) info.reviewCount = reviewMatch[1];
+    }
+
+    console.log('[Lead Hunter] Yelp extraction result:', info);
     return info;
   }
 
@@ -2732,17 +2827,33 @@
     const settings = storage.settings || {};
     const selectedIndustries = settings.industries || [];
 
+    console.log('[Lead Hunter] Checking industry match for:', businessInfo.name);
+    console.log('[Lead Hunter] Selected industries:', selectedIndustries);
+
     if (selectedIndustries.length === 0) {
       // If no industries selected, accept all businesses
+      console.log('[Lead Hunter] No industries selected - accepting all');
       return { matches: true, industry: businessInfo.category || 'Unknown' };
     }
+
+    // Get additional text from page
+    const pageTitle = document.title || '';
+    const metaDesc = document.querySelector('meta[name="description"]')?.content || '';
+    const ogDesc = document.querySelector('meta[property="og:description"]')?.content || '';
 
     const textToCheck = [
       businessInfo.name,
       businessInfo.category,
       businessInfo.description,
+      businessInfo.title,
+      businessInfo.bio,
+      pageTitle,
+      metaDesc,
+      ogDesc,
       window.location.href
-    ].join(' ').toLowerCase();
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    console.log('[Lead Hunter] Text to check for industry:', textToCheck.substring(0, 200) + '...');
 
     // Comprehensive industry keywords with all variations
     const industryKeywords = {
@@ -2902,11 +3013,14 @@
       const keywords = industryKeywords[industry] || [industry];
       for (const keyword of keywords) {
         if (textToCheck.includes(keyword)) {
+          console.log('[Lead Hunter] ✓ INDUSTRY MATCH! Found "' + keyword + '" for industry:', industry);
           return { matches: true, industry };
         }
       }
     }
 
+    console.log('[Lead Hunter] ✗ No industry match found. Business name:', textToCheck.split(' ').slice(0, 5).join(' '));
+    console.log('[Lead Hunter] Tried industries:', selectedIndustries.join(', '));
     return { matches: false, industry: null };
   }
 
