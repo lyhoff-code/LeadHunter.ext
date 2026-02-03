@@ -6,7 +6,7 @@ import { generateMessageDraft } from '../utils/message-generator.js';
 import { passesKeywordFilter } from '../utils/keywords.js';
 import { sendToWebhook, testWebhook } from '../utils/webhooks.js';
 import { sendToGoogleSheets } from '../utils/google-sheets.js';
-import { findEmail, checkCredits } from '../utils/email-finder.js';
+import { findEmail, checkCredits, isValidDomain, cleanDomain, extractDomainFromEmail } from '../utils/email-finder.js';
 import { detectUrgencyFromText, calculateUrgencyDecay } from '../utils/urgency.js';
 import { checkPreviousContact, markProfileContacted, logInteraction, addInteraction } from '../utils/interaction-history.js';
 import { analyzeImageWithGemini, isValidImageUrl } from '../utils/gemini-vision.js';
@@ -412,37 +412,58 @@ async function enrichLeadWithEmail(lead) {
     return;
   }
 
-  // We need a domain to search
-  if (!lead.company && !lead.website) {
-    console.log('[Hunter.io] No company or website for lead:', lead.name);
-    return;
-  }
-
-  // Extract domain from website or company name
+  // Extract domain using multiple strategies
   let domain = null;
 
+  // Strategy 1: Extract from website (most reliable)
   if (lead.website) {
-    try {
-      // Handle websites with or without protocol
-      let websiteUrl = lead.website;
-      if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
-        websiteUrl = 'https://' + websiteUrl;
+    domain = cleanDomain(lead.website);
+    if (!domain) {
+      // Try parsing as URL
+      try {
+        let websiteUrl = lead.website.trim();
+        if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+          websiteUrl = 'https://' + websiteUrl;
+        }
+        const url = new URL(websiteUrl);
+        const hostname = url.hostname.replace(/^www\./, '').toLowerCase();
+        if (isValidDomain(hostname)) {
+          domain = hostname;
+        }
+      } catch (e) {
+        // Try regex extraction as fallback
+        const domainMatch = lead.website.match(/([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,})/);
+        if (domainMatch) {
+          const extracted = domainMatch[1].toLowerCase();
+          if (isValidDomain(extracted)) {
+            domain = extracted;
+          }
+        }
       }
-      const url = new URL(websiteUrl);
-      domain = url.hostname.replace('www.', '');
-    } catch (e) {
-      // If URL parsing fails, try to extract domain directly
-      domain = lead.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
     }
   }
 
-  // Fallback to guessing domain from company name
-  if (!domain && lead.company) {
-    domain = lead.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+  // Strategy 2: Extract from existing email (if they have one from page)
+  if (!domain && lead.existingEmail) {
+    domain = extractDomainFromEmail(lead.existingEmail);
   }
 
-  if (!domain) {
-    console.log('[Hunter.io] Could not determine domain for:', lead.name);
+  // Strategy 3: Check if company name looks like a domain
+  if (!domain && lead.company) {
+    // Only use company if it looks like a domain (has a dot and TLD)
+    const companyLower = lead.company.toLowerCase().trim();
+    if (companyLower.match(/^[a-z0-9][-a-z0-9]*\.[a-z]{2,}$/)) {
+      if (isValidDomain(companyLower)) {
+        domain = companyLower;
+      }
+    }
+    // NOTE: We do NOT guess "Company LLC" -> "companyllc.com"
+    // This wastes Hunter.io credits on non-existent domains
+  }
+
+  // Validate final domain
+  if (!domain || !isValidDomain(domain)) {
+    console.log('[Hunter.io] No valid domain found for lead:', lead.name, '| website:', lead.website, '| company:', lead.company);
     return;
   }
 
@@ -659,10 +680,13 @@ async function saveLead(lead) {
       updated = true;
     }
 
-    // Add missing website
+    // Add missing website (cleaned and validated)
     if (lead.website && !existingLead.website) {
-      existingLead.website = lead.website;
-      updated = true;
+      const cleanedWebsite = cleanDomain(lead.website);
+      if (cleanedWebsite && isValidDomain(cleanedWebsite)) {
+        existingLead.website = 'https://' + cleanedWebsite;
+        updated = true;
+      }
     }
 
     // Add missing company
@@ -796,6 +820,28 @@ async function saveManualContact(data) {
 // Handle scraped business from business pages
 async function handleScrapedBusiness(data) {
   try {
+    // Clean website URL before processing
+    if (data.website) {
+      const cleaned = cleanDomain(data.website);
+      if (cleaned) {
+        // Convert domain back to full URL
+        data.website = 'https://' + cleaned;
+      } else {
+        // Try to fix common issues
+        let websiteUrl = data.website.trim();
+        if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+          websiteUrl = 'https://' + websiteUrl;
+        }
+        // Validate and keep or discard
+        if (!isValidDomain(cleanDomain(websiteUrl))) {
+          console.log('[Lead] Discarding invalid website:', data.website);
+          data.website = null;
+        } else {
+          data.website = websiteUrl;
+        }
+      }
+    }
+
     // Check for duplicates based on multiple criteria
     const storage = await chrome.storage.local.get(['leads']);
     const leads = storage.leads || [];
@@ -869,11 +915,14 @@ async function handleScrapedBusiness(data) {
         console.log('[Enrich] Added email:', data.email);
       }
 
-      // Add missing website
+      // Add missing website (cleaned and validated)
       if (data.website && !existingLead.website) {
-        existingLead.website = data.website;
-        updated = true;
-        console.log('[Enrich] Added website:', data.website);
+        const cleanedWebsite = cleanDomain(data.website);
+        if (cleanedWebsite && isValidDomain(cleanedWebsite)) {
+          existingLead.website = 'https://' + cleanedWebsite;
+          updated = true;
+          console.log('[Enrich] Added website:', existingLead.website);
+        }
       }
 
       // Add missing address
@@ -1195,32 +1244,57 @@ async function handleFindEmail(lead) {
     return { success: false, error: 'No Hunter.io API key configured' };
   }
 
-  if (!lead.company && !lead.website) {
-    return { success: false, error: 'Need company or website to find email' };
-  }
-
-  // Extract domain from website or company name
+  // Extract domain using multiple strategies
   let domain = null;
 
+  // Strategy 1: Extract from website (most reliable)
   if (lead.website) {
-    try {
-      let websiteUrl = lead.website;
-      if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
-        websiteUrl = 'https://' + websiteUrl;
+    domain = cleanDomain(lead.website);
+    if (!domain) {
+      try {
+        let websiteUrl = lead.website.trim();
+        if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+          websiteUrl = 'https://' + websiteUrl;
+        }
+        const url = new URL(websiteUrl);
+        const hostname = url.hostname.replace(/^www\./, '').toLowerCase();
+        if (isValidDomain(hostname)) {
+          domain = hostname;
+        }
+      } catch (e) {
+        // Try regex extraction
+        const domainMatch = lead.website.match(/([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,})/);
+        if (domainMatch) {
+          const extracted = domainMatch[1].toLowerCase();
+          if (isValidDomain(extracted)) {
+            domain = extracted;
+          }
+        }
       }
-      const url = new URL(websiteUrl);
-      domain = url.hostname.replace('www.', '');
-    } catch (e) {
-      domain = lead.website.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
     }
   }
 
-  if (!domain && lead.company) {
-    domain = lead.company.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+  // Strategy 2: Extract from existing email
+  if (!domain && lead.email) {
+    domain = extractDomainFromEmail(lead.email);
   }
 
-  if (!domain) {
-    return { success: false, error: 'Could not determine domain' };
+  // Strategy 3: Only use company if it looks like a domain
+  if (!domain && lead.company) {
+    const companyLower = lead.company.toLowerCase().trim();
+    if (companyLower.match(/^[a-z0-9][-a-z0-9]*\.[a-z]{2,}$/)) {
+      if (isValidDomain(companyLower)) {
+        domain = companyLower;
+      }
+    }
+  }
+
+  // Validate domain
+  if (!domain || !isValidDomain(domain)) {
+    return {
+      success: false,
+      error: 'No se encontró un dominio válido. Asegúrate de que el lead tenga un sitio web (website) registrado.'
+    };
   }
 
   const nameParts = (lead.name || '').split(' ');

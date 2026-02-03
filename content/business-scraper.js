@@ -372,51 +372,154 @@
     }
 
     // ========== WEBSITE EXTRACTION ==========
-    // Priority 1: itemprop="url" (not current domain)
+    const currentHost = window.location.hostname;
+    const excludeHosts = ['facebook.com', 'fb.com', 'twitter.com', 'instagram.com', 'linkedin.com',
+                          'youtube.com', 'google.com', 'yelp.com', 'bbb.org', 'maps.google',
+                          'pinterest.com', 'tiktok.com', 'x.com', 'apple.com', 'android.com',
+                          'whatsapp.com', 'telegram.org', 'wa.me', 't.me', 'bit.ly', 'goo.gl',
+                          'l.facebook.com', 'lm.facebook.com', 'l.instagram.com', 't.co',
+                          'maps.app.goo.gl', 'g.page', 'fb.me', 'youtu.be'];
+
+    // Helper function to check if URL is valid business website
+    const isValidBusinessUrl = (href) => {
+      if (!href) return false;
+      try {
+        const url = new URL(href);
+        const hostname = url.hostname.toLowerCase();
+        // Must be external
+        if (hostname.includes(currentHost) || currentHost.includes(hostname)) return false;
+        // Must not be excluded
+        if (excludeHosts.some(h => hostname.includes(h) || hostname === h)) return false;
+        // Must have valid TLD
+        if (!hostname.match(/\.[a-z]{2,}$/)) return false;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    // Priority 1: Schema.org url property (already extracted above, but double check)
+    if (!info.website) {
+      const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const script of schemaScripts) {
+        try {
+          const data = JSON.parse(script.textContent);
+          const items = Array.isArray(data) ? data : [data];
+          for (const item of items) {
+            if (item.url && isValidBusinessUrl(item.url)) {
+              info.website = item.url;
+              break;
+            }
+            // Also check sameAs for social/website links
+            if (item.sameAs) {
+              const sameAsLinks = Array.isArray(item.sameAs) ? item.sameAs : [item.sameAs];
+              for (const link of sameAsLinks) {
+                if (isValidBusinessUrl(link)) {
+                  info.website = link;
+                  break;
+                }
+              }
+            }
+          }
+          if (info.website) break;
+        } catch (e) {}
+      }
+    }
+
+    // Priority 2: itemprop="url" (not current domain)
     if (!info.website) {
       const urlProp = document.querySelector('[itemprop="url"]');
       if (urlProp) {
         const url = urlProp.href || urlProp.getAttribute('content');
-        if (url && !url.includes(window.location.hostname)) {
+        if (isValidBusinessUrl(url)) {
           info.website = url;
         }
       }
     }
 
-    // Priority 2: Look for external links with "website" text
+    // Priority 3: og:url or canonical (sometimes points to business website)
+    if (!info.website) {
+      const ogUrl = document.querySelector('meta[property="og:url"]');
+      const canonical = document.querySelector('link[rel="canonical"]');
+      const metaUrl = ogUrl?.content || canonical?.href;
+      if (metaUrl && isValidBusinessUrl(metaUrl)) {
+        info.website = metaUrl;
+      }
+    }
+
+    // Priority 4: Look for external links with "website" text
     if (!info.website) {
       const links = document.querySelectorAll('a[href^="http"]');
-      const currentHost = window.location.hostname;
+      const websiteKeywords = ['website', 'sitio web', 'visit', 'our site', 'official site',
+                                'página web', 'web', 'homepage', 'inicio', 'ver sitio'];
       for (const link of links) {
-        const text = link.textContent.toLowerCase();
-        const href = link.href;
-        if ((text.includes('website') || text.includes('sitio web') || text.includes('visit')) &&
-            !href.includes(currentHost)) {
+        const text = link.textContent.toLowerCase().trim();
+        const ariaLabel = (link.getAttribute('aria-label') || '').toLowerCase();
+        const hasWebsiteKeyword = websiteKeywords.some(kw => text.includes(kw) || ariaLabel.includes(kw));
+        if (hasWebsiteKeyword && isValidBusinessUrl(link.href)) {
+          info.website = link.href;
+          break;
+        }
+      }
+    }
+
+    // Priority 5: Links with data-* attributes suggesting website
+    if (!info.website) {
+      const dataLinks = document.querySelectorAll('a[data-website], a[data-url], a[data-href], a[data-link]');
+      for (const link of dataLinks) {
+        const href = link.href || link.getAttribute('data-website') || link.getAttribute('data-url');
+        if (isValidBusinessUrl(href)) {
           info.website = href;
           break;
         }
       }
     }
 
-    // Priority 3: Links that look like company domains
+    // Priority 6: Links that look like company domains (text is the domain)
     if (!info.website) {
       const links = document.querySelectorAll('a[href^="http"]');
-      const currentHost = window.location.hostname;
-      const excludeHosts = ['facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com',
-                            'youtube.com', 'google.com', 'yelp.com', 'bbb.org', 'maps.google',
-                            'pinterest.com', 'tiktok.com', 'x.com', 'apple.com', 'android.com'];
       for (const link of links) {
-        const href = link.href;
-        try {
-          const url = new URL(href);
-          const isExternal = !url.hostname.includes(currentHost) && !currentHost.includes(url.hostname);
-          const isExcluded = excludeHosts.some(h => url.hostname.includes(h));
-          const textLooksLikeDomain = link.textContent.trim().match(/^[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$/);
-          if (isExternal && !isExcluded && textLooksLikeDomain) {
+        const text = link.textContent.trim();
+        // Text looks like a domain: example.com or www.example.com
+        if (text.match(/^(www\.)?[a-zA-Z0-9][-a-zA-Z0-9.]*\.[a-zA-Z]{2,}$/)) {
+          const href = link.href;
+          if (isValidBusinessUrl(href)) {
             info.website = href;
             break;
           }
-        } catch (e) {}
+        }
+      }
+    }
+
+    // Priority 7: Any external link that's not social media (last resort)
+    if (!info.website) {
+      const links = document.querySelectorAll('a[href^="http"]');
+      for (const link of links) {
+        if (isValidBusinessUrl(link.href)) {
+          // Only use if it looks like a simple business domain (not a random page)
+          try {
+            const url = new URL(link.href);
+            // Prefer links to root domain or simple paths
+            if (url.pathname === '/' || url.pathname === '' || url.pathname.match(/^\/?$/)) {
+              info.website = link.href;
+              break;
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // Priority 8: Search for domain patterns in page text as very last resort
+    if (!info.website) {
+      const domainPattern = /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9][-a-zA-Z0-9]*(?:\.[a-zA-Z0-9][-a-zA-Z0-9]*)*\.[a-zA-Z]{2,})(?:\/|\s|$)/g;
+      const matches = pageText.matchAll(domainPattern);
+      for (const match of matches) {
+        const domain = match[1].toLowerCase();
+        // Validate it's not excluded
+        if (!excludeHosts.some(h => domain.includes(h) || domain === h)) {
+          info.website = 'https://' + domain;
+          break;
+        }
       }
     }
 

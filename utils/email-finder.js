@@ -135,29 +135,149 @@ export async function domainSearch(domain, apiKey) {
 }
 
 /**
+ * Validate if a string is a valid domain format
+ * @param {string} domain - Domain to validate
+ * @returns {boolean} - True if valid domain
+ */
+export function isValidDomain(domain) {
+  if (!domain || typeof domain !== 'string') return false;
+
+  // Clean the domain
+  const cleaned = domain.trim().toLowerCase();
+
+  // Must have at least one dot
+  if (!cleaned.includes('.')) return false;
+
+  // Domain regex: alphanumeric with hyphens, dots for subdomains, valid TLD
+  const domainPattern = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*\.[a-z]{2,}$/;
+  if (!domainPattern.test(cleaned)) return false;
+
+  // Exclude social media and platform domains (not useful for Hunter.io)
+  const excludedDomains = [
+    'facebook.com', 'fb.com', 'instagram.com', 'twitter.com', 'x.com',
+    'linkedin.com', 'youtube.com', 'google.com', 'yelp.com', 'bbb.org',
+    'yellowpages.com', 'manta.com', 'thumbtack.com', 'houzz.com',
+    'angi.com', 'homeadvisor.com', 'nextdoor.com', 'crunchbase.com',
+    'zoominfo.com', 'apollo.io', 'indeed.com', 'ziprecruiter.com',
+    'trustpilot.com', 'healthgrades.com', 'zocdoc.com', 'alignable.com',
+    'reddit.com', 'quora.com', 'pinterest.com', 'tiktok.com',
+    'apple.com', 'android.com', 'whatsapp.com', 'telegram.org',
+    'example.com', 'test.com', 'localhost', 'gmail.com', 'yahoo.com',
+    'hotmail.com', 'outlook.com', 'mail.com', 'icloud.com'
+  ];
+
+  for (const excluded of excludedDomains) {
+    if (cleaned === excluded || cleaned.endsWith('.' + excluded)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Clean and normalize a domain
+ * @param {string} domain - Raw domain input
+ * @returns {string|null} - Cleaned domain or null
+ */
+export function cleanDomain(domain) {
+  if (!domain || typeof domain !== 'string') return null;
+
+  let cleaned = domain.trim().toLowerCase();
+
+  // Remove protocol
+  cleaned = cleaned.replace(/^(https?:\/\/)?/, '');
+
+  // Remove www.
+  cleaned = cleaned.replace(/^www\./, '');
+
+  // Remove path, query, hash
+  cleaned = cleaned.split('/')[0].split('?')[0].split('#')[0];
+
+  // Remove port
+  cleaned = cleaned.split(':')[0];
+
+  // Validate and return
+  return isValidDomain(cleaned) ? cleaned : null;
+}
+
+/**
+ * Extract domain from email address
+ * @param {string} email - Email address
+ * @returns {string|null} - Domain or null
+ */
+export function extractDomainFromEmail(email) {
+  if (!email || typeof email !== 'string' || !email.includes('@')) return null;
+
+  const parts = email.trim().toLowerCase().split('@');
+  if (parts.length !== 2) return null;
+
+  const domain = parts[1];
+
+  // Exclude common email providers (not useful for Hunter.io company search)
+  const emailProviders = [
+    'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
+    'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com',
+    'mail.com', 'ymail.com', 'msn.com', 'comcast.net', 'att.net',
+    'verizon.net', 'cox.net', 'sbcglobal.net', 'earthlink.net',
+    'proton.me', 'tutanota.com', 'zoho.com'
+  ];
+
+  if (emailProviders.includes(domain)) return null;
+
+  return isValidDomain(domain) ? domain : null;
+}
+
+/**
  * Extract domain from profile URL or company name
  * @param {object} lead - Lead data
  * @returns {string|null} - Domain or null
  */
 export function extractDomain(lead) {
-  // Try to extract from website if available
+  // Priority 1: Try to extract from website if available
   if (lead.website) {
+    const websiteDomain = cleanDomain(lead.website);
+    if (websiteDomain) return websiteDomain;
+
+    // Try parsing as URL if cleanDomain failed
     try {
-      const url = new URL(lead.website);
-      return url.hostname.replace('www.', '');
+      let websiteUrl = lead.website.trim();
+      if (!websiteUrl.startsWith('http://') && !websiteUrl.startsWith('https://')) {
+        websiteUrl = 'https://' + websiteUrl;
+      }
+      const url = new URL(websiteUrl);
+      const hostname = url.hostname.replace(/^www\./, '').toLowerCase();
+      if (isValidDomain(hostname)) return hostname;
+    } catch {
+      // URL parsing failed, try regex extraction
+      const domainMatch = lead.website.match(/([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,})/);
+      if (domainMatch) {
+        const extracted = domainMatch[1].toLowerCase();
+        if (isValidDomain(extracted)) return extracted;
+      }
+    }
+  }
+
+  // Priority 2: Try to extract from email if available
+  if (lead.email) {
+    const emailDomain = extractDomainFromEmail(lead.email);
+    if (emailDomain) return emailDomain;
+  }
+
+  // Priority 3: Try to extract from profileUrl for certain platforms
+  if (lead.profileUrl) {
+    try {
+      const url = new URL(lead.profileUrl);
+      // For LinkedIn company pages, we can't extract domain
+      // For other platforms, the profileUrl itself isn't useful
     } catch {
       // Not a valid URL
     }
   }
 
-  // Try to extract from company name (basic heuristic)
-  if (lead.company) {
-    const cleaned = lead.company
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g, '')
-      .substring(0, 20);
-    return `${cleaned}.com`; // Guess - not reliable
-  }
+  // NOTE: We intentionally do NOT guess domain from company name
+  // as "Company LLC" -> "companyllc.com" is unreliable and wastes Hunter.io credits
+  // Instead, we return null and let the caller handle it
 
   return null;
 }
