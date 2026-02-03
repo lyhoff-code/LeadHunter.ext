@@ -284,3 +284,80 @@ export function getMatchedKeywords(comment, settings = {}) {
 }
 
 export { DEFAULT_PAIN_KEYWORDS, OWNER_INDICATORS, INDUSTRY_KEYWORDS };
+
+/**
+ * Detect industry from business info (name, description, category)
+ * Used for filtering scraped businesses by selected industries
+ * @param {object} businessInfo - Object with name, description, category
+ * @param {string[]} selectedIndustries - Array of industry keys to match against
+ * @returns {object|null} - { industry: string, matchedKeywords: string[], source: string } or null
+ */
+export function detectIndustryFromBusiness(businessInfo, selectedIndustries) {
+  if (!businessInfo || !selectedIndustries || selectedIndustries.length === 0) {
+    return null;
+  }
+
+  // Combine all text sources for matching
+  const name = (businessInfo.name || '').toLowerCase();
+  const description = (businessInfo.description || businessInfo.bio || '').toLowerCase();
+  const category = (businessInfo.category || businessInfo.title || '').toLowerCase();
+
+  // Check each selected industry
+  for (const industry of selectedIndustries) {
+    const keywords = INDUSTRY_KEYWORDS[industry] || [];
+    if (keywords.length === 0) continue;
+
+    const matchedKeywords = [];
+    let matchSource = null;
+
+    // Check name first (highest priority)
+    for (const keyword of keywords) {
+      const kw = keyword.toLowerCase();
+      if (name.includes(kw)) {
+        matchedKeywords.push(keyword);
+        matchSource = matchSource || 'name';
+      }
+    }
+
+    // Check category (second priority)
+    for (const keyword of keywords) {
+      const kw = keyword.toLowerCase();
+      if (category.includes(kw) && !matchedKeywords.includes(keyword)) {
+        matchedKeywords.push(keyword);
+        matchSource = matchSource || 'category';
+      }
+    }
+
+    // Check description (third priority)
+    for (const keyword of keywords) {
+      const kw = keyword.toLowerCase();
+      if (description.includes(kw) && !matchedKeywords.includes(keyword)) {
+        matchedKeywords.push(keyword);
+        matchSource = matchSource || 'description';
+      }
+    }
+
+    // If we found matches, return this industry
+    if (matchedKeywords.length > 0) {
+      return {
+        industry,
+        matchedKeywords,
+        source: matchSource,
+        confidence: matchedKeywords.length >= 2 ? 'high' : 'medium'
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Check if business matches any of the selected industries
+ * Simpler version that just returns true/false
+ * @param {object} businessInfo - Object with name, description, category
+ * @param {string[]} selectedIndustries - Array of industry keys
+ * @returns {boolean}
+ */
+export function businessMatchesIndustry(businessInfo, selectedIndustries) {
+  return detectIndustryFromBusiness(businessInfo, selectedIndustries) !== null;
+}

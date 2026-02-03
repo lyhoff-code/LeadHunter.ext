@@ -3,7 +3,7 @@
 import { analyzeWithGemini } from '../utils/gemini.js';
 import { sendToHubSpot } from '../utils/hubspot.js';
 import { generateMessageDraft } from '../utils/message-generator.js';
-import { passesKeywordFilter } from '../utils/keywords.js';
+import { passesKeywordFilter, detectIndustryFromBusiness } from '../utils/keywords.js';
 import { sendToWebhook, testWebhook } from '../utils/webhooks.js';
 import { sendToGoogleSheets } from '../utils/google-sheets.js';
 import { findEmail, checkCredits, isValidDomain, cleanDomain, extractDomainFromEmail } from '../utils/email-finder.js';
@@ -875,8 +875,32 @@ async function handleScrapedBusiness(data) {
     }
 
     // Check for duplicates based on multiple criteria
-    const storage = await chrome.storage.local.get(['leads']);
+    const storage = await chrome.storage.local.get(['leads', 'settings']);
     const leads = storage.leads || [];
+    const userSettings = storage.settings || {};
+
+    // INDUSTRY FILTER: Only save if business matches selected industries
+    let detectedIndustryInfo = null;
+    if (userSettings.industries && userSettings.industries.length > 0) {
+      // Detect industry from business name, description, and category
+      detectedIndustryInfo = detectIndustryFromBusiness({
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        title: data.category, // Some platforms use title for category
+        bio: data.description
+      }, userSettings.industries);
+
+      if (!detectedIndustryInfo) {
+        console.log('[Industry Filter] Business does not match selected industries:', data.name);
+        console.log('[Industry Filter] Selected industries:', userSettings.industries);
+        return { success: false, error: 'industry_not_matched', message: 'Business does not match selected industries' };
+      }
+
+      console.log('[Industry Filter] Matched industry:', detectedIndustryInfo.industry,
+                  '| Keywords:', detectedIndustryInfo.matchedKeywords.join(', '),
+                  '| Source:', detectedIndustryInfo.source);
+    }
 
     // Normalize for comparison
     const normalizeName = (name) => (name || '').toLowerCase().trim().replace(/\s+/g, ' ');
@@ -1007,7 +1031,19 @@ async function handleScrapedBusiness(data) {
       }
     }
 
-    // Create scraped business lead
+    // Determine industry from detection or fallback
+    const detectedIndustry = detectedIndustryInfo?.industry || data.industry || data.category || 'unknown';
+    const industryMatchKeywords = detectedIndustryInfo?.matchedKeywords || [];
+    const industryMatchSource = detectedIndustryInfo?.source || 'category';
+
+    // Build analysis message
+    let analysisMsg = `Negocio de ${detectedIndustry} scrapeado de ${data.platform}. `;
+    if (industryMatchKeywords.length > 0) {
+      analysisMsg += `Detectado por: "${industryMatchKeywords.join(', ')}" en ${industryMatchSource}. `;
+    }
+    analysisMsg += 'Sin señales de dolor - contactar con enfoque frío.';
+
+    // Create scraped business lead (COLD - no pain points)
     const lead = {
       id: generateId(),
       name: data.name || 'Unknown Business',
@@ -1020,10 +1056,12 @@ async function handleScrapedBusiness(data) {
       urgencyLevel: 'low',
       frustrationLevel: 0,
       buyingIntent: 'unknown',
-      suggestedApproach: 'cold',
-      analysis: `Negocio scrapeado de ${data.platform}. Sin señales de dolor - contactar con enfoque frío.`,
+      suggestedApproach: 'cold', // COLD because no pain points detected
+      analysis: analysisMsg,
       painPoints: [],
-      industry: data.industry || data.category || 'unknown',
+      industry: detectedIndustry,
+      industryMatchKeywords: industryMatchKeywords, // Keywords that matched
+      industryMatchSource: industryMatchSource, // Where the match was found (name, category, description)
       isBusinessOwner: true,
       mentionsCompetitor: false,
       messageDraft: '',
