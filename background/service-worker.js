@@ -965,6 +965,16 @@ async function handleScrapedBusiness(data) {
       return { success: false, error: 'duplicate' };
     }
 
+    // FINAL validation: ensure website is valid before creating lead
+    // This is a safety net to catch any invalid domains that slipped through
+    if (data.website) {
+      const finalDomain = cleanDomain(data.website);
+      if (!finalDomain || !isValidDomain(finalDomain)) {
+        console.log('[Lead] Final check: Rejecting invalid website:', data.website);
+        data.website = null;
+      }
+    }
+
     // Create scraped business lead
     const lead = {
       id: generateId(),
@@ -994,7 +1004,7 @@ async function handleScrapedBusiness(data) {
       email: data.email || null,
       emailConfidence: data.email ? 100 : null,
       company: data.name || null,
-      website: data.website || null,
+      website: data.website || null, // Already validated above
       phone: data.phone || null,
       address: data.address || null,
       rating: data.rating || null,

@@ -154,20 +154,43 @@ export function isValidDomain(domain) {
 
   // Exclude social media and platform domains (not useful for Hunter.io)
   const excludedDomains = [
-    'facebook.com', 'fb.com', 'instagram.com', 'twitter.com', 'x.com',
-    'linkedin.com', 'youtube.com', 'google.com', 'yelp.com', 'bbb.org',
-    'yellowpages.com', 'manta.com', 'thumbtack.com', 'houzz.com',
-    'angi.com', 'homeadvisor.com', 'nextdoor.com', 'crunchbase.com',
-    'zoominfo.com', 'apollo.io', 'indeed.com', 'ziprecruiter.com',
-    'trustpilot.com', 'healthgrades.com', 'zocdoc.com', 'alignable.com',
-    'reddit.com', 'quora.com', 'pinterest.com', 'tiktok.com',
-    'apple.com', 'android.com', 'whatsapp.com', 'telegram.org',
-    'example.com', 'test.com', 'localhost', 'gmail.com', 'yahoo.com',
-    'hotmail.com', 'outlook.com', 'mail.com', 'icloud.com'
+    // Google and all subdomains
+    'google.com', 'google.com.mx', 'google.es', 'google.co.uk', 'google.ca',
+    'google.com.ar', 'google.com.co', 'google.cl', 'google.com.pe',
+    'googleapis.com', 'googleusercontent.com', 'goo.gl', 'g.page', 'g.co',
+    // Social media
+    'facebook.com', 'fb.com', 'fb.me', 'instagram.com', 'twitter.com', 'x.com',
+    'linkedin.com', 'youtube.com', 'youtu.be', 'tiktok.com', 'pinterest.com',
+    'snapchat.com', 'reddit.com', 'quora.com', 'tumblr.com',
+    // Messaging
+    'whatsapp.com', 'wa.me', 'telegram.org', 't.me', 'messenger.com',
+    // Business directories (not actual company domains)
+    'yelp.com', 'bbb.org', 'yellowpages.com', 'manta.com', 'trustpilot.com',
+    'thumbtack.com', 'houzz.com', 'angi.com', 'homeadvisor.com', 'nextdoor.com',
+    'crunchbase.com', 'zoominfo.com', 'apollo.io', 'indeed.com', 'ziprecruiter.com',
+    'healthgrades.com', 'zocdoc.com', 'alignable.com', 'glassdoor.com',
+    // URL shorteners
+    'bit.ly', 'tinyurl.com', 'ow.ly', 't.co', 'buff.ly', 'is.gd', 'v.gd',
+    // Common email providers
+    'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com',
+    'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com', 'mail.com',
+    // Tech giants (not useful for B2B)
+    'apple.com', 'microsoft.com', 'amazon.com', 'android.com',
+    // Test/placeholder domains
+    'example.com', 'example.org', 'example.net', 'test.com', 'localhost',
+    'domain.com', 'website.com', 'yoursite.com', 'yourcompany.com'
   ];
 
   for (const excluded of excludedDomains) {
     if (cleaned === excluded || cleaned.endsWith('.' + excluded)) {
+      return false;
+    }
+  }
+
+  // Additional check: reject if domain contains common platform keywords
+  const platformKeywords = ['google', 'facebook', 'instagram', 'twitter', 'linkedin', 'youtube', 'yelp'];
+  for (const keyword of platformKeywords) {
+    if (cleaned.includes(keyword + '.') || cleaned.startsWith(keyword)) {
       return false;
     }
   }
