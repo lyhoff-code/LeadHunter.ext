@@ -26,12 +26,44 @@ let isScanning = true;
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('Lead Hunter AI installed');
   await loadSettings();
+  await cleanInvalidWebsitesFromLeads();
 });
 
 // Also load on startup
 chrome.runtime.onStartup.addListener(async () => {
   await loadSettings();
+  await cleanInvalidWebsitesFromLeads();
 });
+
+/**
+ * Clean invalid websites (like google.com) from existing leads
+ * This runs on startup to fix leads that were saved before validation was added
+ */
+async function cleanInvalidWebsitesFromLeads() {
+  try {
+    const storage = await chrome.storage.local.get(['leads']);
+    const leads = storage.leads || [];
+    let cleanedCount = 0;
+
+    for (const lead of leads) {
+      if (lead.website) {
+        const domain = cleanDomain(lead.website);
+        if (!domain || !isValidDomain(domain)) {
+          console.log('[Cleanup] Removing invalid website from lead:', lead.name, '->', lead.website);
+          lead.website = null;
+          cleanedCount++;
+        }
+      }
+    }
+
+    if (cleanedCount > 0) {
+      await chrome.storage.local.set({ leads });
+      console.log(`[Cleanup] Cleaned ${cleanedCount} leads with invalid websites`);
+    }
+  } catch (error) {
+    console.error('[Cleanup] Error cleaning leads:', error);
+  }
+}
 
 // Load settings from storage
 async function loadSettings() {
