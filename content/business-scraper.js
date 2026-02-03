@@ -214,7 +214,9 @@
       email: '',
       phone: '',
       website: '',
-      address: ''
+      address: '',
+      category: '',
+      description: ''
     };
 
     const pageText = document.body.innerText || '';
@@ -237,6 +239,12 @@
               [biz.address.streetAddress, biz.address.addressLocality, biz.address.addressRegion, biz.address.postalCode]
                 .filter(Boolean).join(', ');
           }
+          // Also extract category and description from schema
+          if (biz['@type'] && biz['@type'] !== 'WebSite' && biz['@type'] !== 'WebPage') {
+            info.category = String(biz['@type']).replace(/([A-Z])/g, ' $1').trim();
+          }
+          if (biz.category) info.category = biz.category;
+          if (biz.description) info.description = biz.description.substring(0, 500);
           break;
         }
       } catch (e) {}
@@ -582,7 +590,96 @@
     if (!info.website && universal.website) info.website = universal.website;
     if (!info.address && universal.address) info.address = universal.address;
 
+    // Also enrich category and description (important for industry matching)
+    if (!info.category && universal.category) info.category = universal.category;
+    if (!info.description && universal.description) info.description = universal.description;
+
+    // If still no category, try to detect from page content
+    if (!info.category) {
+      info.category = detectCategoryFromPage();
+    }
+
+    // If still no description, get from meta tags
+    if (!info.description) {
+      info.description = getMetaDescription();
+    }
+
     return info;
+  }
+
+  /**
+   * Detect category/industry from page content
+   */
+  function detectCategoryFromPage() {
+    // Try Schema.org
+    const schemaScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of schemaScripts) {
+      try {
+        const data = JSON.parse(script.textContent);
+        const items = Array.isArray(data) ? data : [data];
+        for (const item of items) {
+          if (item['@type'] && item['@type'] !== 'WebSite' && item['@type'] !== 'WebPage') {
+            // Types like "Plumber", "HVACBusiness", "Dentist" are useful
+            const type = item['@type'];
+            if (typeof type === 'string' && type.length > 2 && type.length < 50) {
+              return type.replace(/([A-Z])/g, ' $1').trim(); // "HVACBusiness" -> "HVAC Business"
+            }
+          }
+          if (item.additionalType) return item.additionalType;
+          if (item.category) return item.category;
+          if (item.industry) return item.industry;
+        }
+      } catch (e) {}
+    }
+
+    // Try meta keywords
+    const metaKeywords = document.querySelector('meta[name="keywords"]');
+    if (metaKeywords && metaKeywords.content) {
+      const keywords = metaKeywords.content.split(',').map(k => k.trim()).filter(k => k.length > 2 && k.length < 30);
+      if (keywords.length > 0) {
+        return keywords.slice(0, 2).join(', ');
+      }
+    }
+
+    // Try common category selectors
+    const categorySelectors = [
+      '[itemprop="category"]',
+      '[class*="category"]',
+      '[class*="industry"]',
+      'nav[aria-label="Breadcrumb"] a:nth-child(2)',
+      '.breadcrumb a:nth-child(2)',
+      '[data-category]',
+      '[data-industry]'
+    ];
+    for (const sel of categorySelectors) {
+      const el = document.querySelector(sel);
+      if (el) {
+        const text = (el.textContent || el.getAttribute('data-category') || el.getAttribute('data-industry') || '').trim();
+        if (text && text.length > 2 && text.length < 50) {
+          return text;
+        }
+      }
+    }
+
+    return '';
+  }
+
+  /**
+   * Get meta description from page
+   */
+  function getMetaDescription() {
+    const selectors = [
+      'meta[name="description"]',
+      'meta[property="og:description"]',
+      'meta[name="twitter:description"]'
+    ];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el && el.content && el.content.trim().length > 20) {
+        return el.content.trim().substring(0, 500);
+      }
+    }
+    return '';
   }
 
   /**
@@ -1156,17 +1253,20 @@
       website: '',
       address: '',
       category: '',
+      description: '',
       rating: '',
       reviewCount: ''
     };
 
-    // Business name - try multiple selectors
+    // Business name - try multiple selectors (Google Maps changes frequently)
     const nameSelectors = [
       'h1.DUwDvf',
-      'h1[class*="header"]',
       'h1.fontHeadlineLarge',
+      'h1[class*="header"]',
       'div[role="main"] h1',
       '[data-header-feature-id="title"]',
+      'h1.x3AX1-LfntMc-header-title-title',
+      '[class*="section-hero-header"] h1',
       'h1'
     ];
     for (const sel of nameSelectors) {
@@ -1177,47 +1277,41 @@
       }
     }
 
-    // Phone - try multiple approaches
+    // Phone - multiple approaches
     const phoneLink = document.querySelector('a[href^="tel:"]');
     if (phoneLink) {
       info.phone = phoneLink.href.replace('tel:', '').trim();
     } else {
-      // Try button with phone data
-      const phoneButton = document.querySelector('button[data-item-id*="phone"]') ||
-                          document.querySelector('button[aria-label*="Phone"]') ||
-                          document.querySelector('button[aria-label*="phone"]') ||
-                          document.querySelector('[data-tooltip="Copy phone number"]');
-      if (phoneButton) {
-        const label = phoneButton.getAttribute('aria-label') || phoneButton.textContent;
-        const phoneMatch = label.match(/[\d\s()+-]+/);
-        if (phoneMatch) info.phone = phoneMatch[0].trim();
-      }
-    }
-
-    // If still no phone, search in page text
-    if (!info.phone) {
-      const pageText = document.body.innerText;
-      const phonePatterns = [
-        /\+1[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/,
-        /\(\d{3}\)\s*\d{3}[-.]?\d{4}/,
-        /\d{3}[-.\s]\d{3}[-.\s]\d{4}/
+      const phoneSelectors = [
+        'button[data-item-id*="phone"]',
+        'button[aria-label*="Phone"]',
+        'button[aria-label*="phone"]',
+        'button[aria-label*="Teléfono"]',
+        '[data-tooltip="Copy phone number"]',
+        'a[data-item-id*="phone"]'
       ];
-      for (const pattern of phonePatterns) {
-        const match = pageText.match(pattern);
-        if (match) {
-          info.phone = match[0];
-          break;
+      for (const sel of phoneSelectors) {
+        const el = document.querySelector(sel);
+        if (el) {
+          const label = el.getAttribute('aria-label') || el.textContent;
+          const phoneMatch = label.match(/[\d\s()+-]{10,}/);
+          if (phoneMatch) {
+            info.phone = phoneMatch[0].trim();
+            break;
+          }
         }
       }
     }
 
-    // Website - try multiple selectors
+    // Website - multiple selectors
     const websiteSelectors = [
       'a[data-item-id="authority"]',
       'a[aria-label*="Website"]',
       'a[aria-label*="website"]',
+      'a[aria-label*="Sitio web"]',
       'a[data-tooltip="Open website"]',
-      'a.CsEnBe[href^="http"]'
+      'a.CsEnBe[href^="http"]',
+      '[data-item-id="authority"] a'
     ];
     for (const sel of websiteSelectors) {
       const el = document.querySelector(sel);
@@ -1233,9 +1327,8 @@
       for (const btn of buttons) {
         const label = btn.getAttribute('aria-label') || '';
         if (label.toLowerCase().includes('website') || label.toLowerCase().includes('sitio web')) {
-          // The website might be in the button's text or a sibling
           const text = btn.textContent.trim();
-          if (text.includes('.com') || text.includes('.net') || text.includes('.org')) {
+          if (text.match(/\.[a-z]{2,}/i)) {
             info.website = text.startsWith('http') ? text : 'https://' + text;
             break;
           }
@@ -1247,44 +1340,95 @@
     const addressSelectors = [
       'button[data-item-id="address"]',
       'button[aria-label*="Address"]',
-      'button[aria-label*="address"]',
-      '[data-tooltip="Copy address"]'
+      'button[aria-label*="Dirección"]',
+      '[data-tooltip="Copy address"]',
+      '[data-item-id="address"]'
     ];
     for (const sel of addressSelectors) {
       const el = document.querySelector(sel);
       if (el) {
-        info.address = el.getAttribute('aria-label')?.replace('Address:', '').trim() ||
+        info.address = el.getAttribute('aria-label')?.replace(/^(Address|Dirección):?\s*/i, '').trim() ||
                        el.textContent.trim();
         break;
       }
     }
 
-    // Category
+    // Category - IMPROVED with more selectors
     const categorySelectors = [
       'button[jsaction*="category"]',
       '.DkEaL',
       'span.DkEaL',
-      '[class*="category"]'
+      '[class*="category"]',
+      // Google Maps shows category under the name
+      '.fontBodyMedium span[class*="DkEaL"]',
+      'div[role="main"] .fontBodyMedium button',
+      // Sometimes in the info section
+      '[class*="section-info"] button[class*="category"]',
+      // Look for links that are categories
+      'button[jsaction*="pane.rating.category"]'
     ];
     for (const sel of categorySelectors) {
       const el = document.querySelector(sel);
       if (el && el.textContent.trim()) {
-        info.category = el.textContent.trim();
+        const text = el.textContent.trim();
+        // Filter out non-category text
+        if (text.length > 2 && text.length < 100 && !text.includes('review') && !text.includes('photo')) {
+          info.category = text;
+          break;
+        }
+      }
+    }
+
+    // If no category found, try to find from aria-labels
+    if (!info.category) {
+      const allButtons = document.querySelectorAll('button[aria-label]');
+      for (const btn of allButtons) {
+        const label = btn.getAttribute('aria-label') || '';
+        // Category buttons often have the category in aria-label
+        if (label.match(/^[A-Z][a-z]+ (service|contractor|repair|company|shop|store|clinic|office)/i)) {
+          info.category = label;
+          break;
+        }
+      }
+    }
+
+    // Description - from About section or summary
+    const descSelectors = [
+      '[class*="section-editorial-summary"] span',
+      '[class*="summary"]',
+      '[data-attrid*="description"]',
+      'div[class*="editorial"] span',
+      '[class*="section-description"]'
+    ];
+    for (const sel of descSelectors) {
+      const el = document.querySelector(sel);
+      if (el && el.textContent.trim().length > 20) {
+        info.description = el.textContent.trim().substring(0, 500);
         break;
+      }
+    }
+
+    // Also try meta description
+    if (!info.description) {
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc && metaDesc.content) {
+        info.description = metaDesc.content.substring(0, 500);
       }
     }
 
     // Rating and reviews
     const ratingEl = document.querySelector('div.F7nice span[aria-hidden="true"]') ||
-                     document.querySelector('span.ceNzKf[role="img"]');
+                     document.querySelector('span.ceNzKf[role="img"]') ||
+                     document.querySelector('[class*="rating"] span');
     if (ratingEl) {
       info.rating = ratingEl.textContent.trim() || ratingEl.getAttribute('aria-label');
     }
 
     const reviewEl = document.querySelector('span[aria-label*="reviews"]') ||
+                     document.querySelector('span[aria-label*="reseñas"]') ||
                      document.querySelector('span.F7nice span:last-child');
     if (reviewEl) {
-      const reviewMatch = reviewEl.textContent.match(/[\d,]+/);
+      const reviewMatch = (reviewEl.getAttribute('aria-label') || reviewEl.textContent).match(/[\d,]+/);
       if (reviewMatch) info.reviewCount = reviewMatch[0].replace(',', '');
     }
 
@@ -1295,7 +1439,7 @@
       info.email = emailMatch[0];
     }
 
-    console.log('[Lead Hunter] Extracted Google business:', info);
+    console.log('[Lead Hunter] Extracted Google Maps business:', info);
     return info;
   }
 
