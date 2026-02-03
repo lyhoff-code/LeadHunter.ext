@@ -137,9 +137,9 @@ function doPost(e) {
       sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(SHEET_NAME);
       // Add headers - matching extension data fields
       sheet.getRange(1, 1, 1, 14).setValues([[
-        'Fecha', 'Empresa', 'Telefono', 'Email', 'Website', 'Direccion',
-        'Categoria', 'Plataforma', 'Score', 'Urgencia', 'Tipo',
-        'Perfil URL', 'Analisis', 'Notas'
+        'Date', 'Company', 'Phone', 'Email', 'Website', 'Address',
+        'Category', 'Platform', 'Score', 'Urgency', 'Type',
+        'Profile URL', 'Analysis', 'Notes'
       ]]);
       sheet.getRange(1, 1, 1, 14).setFontWeight('bold');
       sheet.setFrozenRows(1);
@@ -158,13 +158,13 @@ function doPost(e) {
     }
 
     // Format timestamp to readable date
-    let fecha = data.timestamp || new Date().toISOString();
+    let date = data.timestamp || new Date().toISOString();
     try {
-      fecha = new Date(fecha).toLocaleString('es-ES');
+      date = new Date(date).toLocaleString('en-US');
     } catch(e) {}
 
     const row = [
-      fecha,
+      date,
       data.company || data.name || '',
       phone,
       data.email || '',
